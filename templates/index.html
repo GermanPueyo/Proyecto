@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WinRM Server Monitor</title>
+  <meta name="description" content="Panel web de monitorización de servidores Windows Server 2022 vía WinRM">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ============================================================
+     PANTALLA HOME — Grid de Servidores
+     ============================================================ -->
+<div id="home-screen">
+  <div class="home-header">
+    <img src="/logo" alt="Logo" id="home-logo">
+    <h1>WinRM Server Monitor</h1>
+    <p>Panel de monitorización remota para Windows Server</p>
+  </div>
+
+  <div class="servers-grid">
+    <div class="server-card" onclick="openLoginModal()">
+      <div class="sc-icon">🖥️</div>
+      <h3>Servidor Principal</h3>
+      <p class="sc-ip">192.168.56.101</p>
+      <div class="sc-status"><span class="dot"></span> Disponible para conexión</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL DE LOGIN
+     ============================================================ -->
+<div class="modal-overlay" id="login-modal">
+  <div class="modal-box" style="position:relative">
+    <button class="modal-close" onclick="closeLoginModal()">&times;</button>
+    <h2>Conectar al servidor</h2>
+    <p class="modal-sub">Introduce las credenciales WinRM para iniciar sesión</p>
+
+    <div class="login-error" id="login-error"></div>
+
+    <div class="form-group">
+      <label for="inp-ip">Dirección IP</label>
+      <input type="text" id="inp-ip" value="192.168.56.101" placeholder="192.168.x.x">
+    </div>
+    <div class="form-group">
+      <label for="inp-user">Usuario</label>
+      <input type="text" id="inp-user" value="Administrador" placeholder="Administrator">
+    </div>
+    <div class="form-group">
+      <label for="inp-pwd">Contraseña</label>
+      <input type="password" id="inp-pwd" placeholder="••••••••">
+    </div>
+
+    <button class="btn btn-primary" id="btn-connect" onclick="doConnect()">
+      <span class="login-spinner" id="login-spinner"></span>
+      <span id="btn-connect-text">Conectar</span>
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL DE IPs DHCP
+     ============================================================ -->
+<div class="modal-overlay" id="dhcp-modal">
+  <div class="modal-box" style="width: 500px; max-height: 85vh; display: flex; flex-direction: column;">
+    <button class="modal-close" onclick="closeDhcpModal()">&times;</button>
+    <h2 id="dhcp-modal-title">Rango DHCP</h2>
+    <p class="modal-sub" id="dhcp-modal-sub">Listado de direcciones IP</p>
+    
+    <div id="ip-list-container" style="overflow-y: auto; flex: 1; padding-right: 10px; margin-top: 10px; display: grid; gap: 8px;">
+      <!-- Se llena por JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DASHBOARD POST-LOGIN
+     ============================================================ -->
+<div id="dashboard-screen">
+  <div class="dash-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand" style="cursor: pointer; transition: opacity .2s" onclick="doDisconnect()" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+        <img src="/logo" alt="Logo">
+        <div>
+          <h2>WinRM Monitor</h2>
+          <small id="dash-ip">192.168.56.101</small>
+        </div>
+      </div>
+      <div class="nav-items">
+        <button class="nav-btn active" data-view="monitor" onclick="switchView('monitor', this)">
+          <span class="nav-icon">📊</span> Monitorización
+          <span class="nav-indicator" id="nav-cpu-pct">—</span>
+        </button>
+        <button class="nav-btn" data-view="disks" onclick="switchView('disks', this)">
+          <span class="nav-icon">💾</span> Discos
+        </button>
+        <button class="nav-btn" data-view="specs" onclick="switchView('specs', this)">
+          <span class="nav-icon">⚙️</span> Características
+        </button>
+        <button class="nav-btn" data-view="dhcp" onclick="switchView('dhcp', this)">
+          <span class="nav-icon">🌐</span> Servidor DHCP
+        </button>
+      </div>
+      <div class="sidebar-footer">
+        <div class="server-info">
+          <span class="dot-live"></span> Conectado ·
+          <span id="footer-ip">—</span>
+        </div>
+        <button class="btn btn-ghost" style="width:100%" onclick="doDisconnect()">Desconectar</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+
+      <!-- VISTA C — Monitorización -->
+      <div id="view-monitor">
+        <div class="view-header">
+          <h1>Monitorización en Tiempo Real</h1>
+          <p>Métricas actualizadas cada 3 segundos mediante WinRM</p>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi-card" id="kpi-cpu">
+            <div class="kpi-label">CPU</div>
+            <div class="kpi-value" id="kpi-cpu-val" style="color:var(--cpu)">0%</div>
+            <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-cpu-bar" style="width:0; background:var(--cpu)"></div></div>
+          </div>
+          <div class="kpi-card" id="kpi-ram">
+            <div class="kpi-label">Memoria RAM</div>
+            <div class="kpi-value" id="kpi-ram-val" style="color:var(--ram)">0%</div>
+            <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-ram-bar" style="width:0; background:var(--ram)"></div></div>
+          </div>
+          <div class="kpi-card" id="kpi-disk">
+            <div class="kpi-label">Disco Activo</div>
+            <div class="kpi-value" id="kpi-disk-val" style="color:var(--disk)">0%</div>
+            <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-disk-bar" style="width:0; background:var(--disk)"></div></div>
+          </div>
+          <div class="kpi-card" id="kpi-net">
+            <div class="kpi-label">Red Total</div>
+            <div class="kpi-value" id="kpi-net-val" style="color:var(--net)">0 Mbps</div>
+            <div class="kpi-bar"><div class="kpi-bar-fill" id="kpi-net-bar" style="width:0; background:var(--net)"></div></div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-box">
+            <h3><span class="dot-color" style="background:var(--orange)"></span> CPU, RAM &amp; Disco</h3>
+            <canvas id="chart-cpu-ram"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3><span class="dot-color" style="background:var(--ok)"></span> Red (Mbps)</h3>
+            <canvas id="chart-net"></canvas>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="si-label">Procesos</div>
+            <div class="si-value" id="st-proc">—</div>
+          </div>
+          <div class="stat-item">
+            <div class="si-label">Subprocesos</div>
+            <div class="si-value" id="st-thr">—</div>
+          </div>
+          <div class="stat-item">
+            <div class="si-label">Lectura Disco</div>
+            <div class="si-value" id="st-drd">— <span class="si-unit">MB/s</span></div>
+          </div>
+          <div class="stat-item">
+            <div class="si-label">Escritura Disco</div>
+            <div class="si-value" id="st-dwr">— <span class="si-unit">MB/s</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISTA A — Discos -->
+      <div id="view-disks" style="display:none">
+        <div class="view-header">
+          <h1>Unidades de Almacenamiento</h1>
+          <p>Discos lógicos detectados en el servidor remoto</p>
+        </div>
+        <div class="disks-grid" id="disks-container">
+          <p style="color:var(--muted)">Cargando discos…</p>
+        </div>
+      </div>
+
+      <!-- VISTA B — Características -->
+      <div id="view-specs" style="display:none">
+        <div class="view-header">
+          <h1>Características del Sistema</h1>
+          <p>Hardware y software detectados vía WMI</p>
+        </div>
+        <div class="specs-grid" id="specs-container"></div>
+      </div>
+
+      <!-- VISTA D — DHCP -->
+      <div id="view-dhcp" style="display:none">
+        <div class="view-header">
+          <h1>Servidor DHCP</h1>
+          <p>Gestión de ámbitos, rangos de IP y asignaciones activas</p>
+        </div>
+        <div class="dhcp-grid" id="dhcp-container">
+          <p style="color:var(--muted)">Cargando scopes DHCP…</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Chart.js por CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
