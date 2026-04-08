@@ -5,6 +5,8 @@
    ======================================================== */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap');
 
+
+
 :root {
   --bg:        #361f0f;
   --surface:   #4a2c16;
@@ -57,7 +59,7 @@ body {
   justify-content: center;
   min-height: 100vh;
   padding: 60px 20px;
-  background: url('/static/fondo.png') center/cover no-repeat fixed;
+  background: url('/static/img/fondo.png') center/cover no-repeat fixed;
   position: relative;
 }
 #home-screen::before {
@@ -145,6 +147,50 @@ body {
   50%      { opacity: .4; transform: scale(1.4); }
 }
 
+/* Ghost "Add" card */
+.server-card.add-card {
+  border: 2px dashed rgba(255,250,237,.2);
+  background: rgba(90,55,32,.35);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  min-height: 200px;
+}
+.server-card.add-card:hover {
+  border-color: var(--blue);
+  background: rgba(90,55,32,.55);
+}
+.server-card.add-card::before { display: none; }
+.add-card-icon {
+  font-size: 2.8rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+  transition: color .3s, transform .3s;
+}
+.server-card.add-card:hover .add-card-icon {
+  color: var(--cream);
+  transform: scale(1.15);
+}
+
+/* Action buttons (edit / delete) */
+.sc-action {
+  position: absolute;
+  top: 14px;
+  background: none; border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .2s, transform .2s;
+  padding: 4px 6px;
+  border-radius: 6px;
+  z-index: 2;
+}
+.server-card:hover .sc-action { opacity: 1; }
+.sc-edit { right: 46px; }
+.sc-edit:hover { background: rgba(131,180,187,.2); transform: scale(1.15); }
+.sc-delete { right: 12px; }
+.sc-delete:hover { background: rgba(217,138,139,.2); transform: scale(1.15); }
+
 /* ================================================================
    MODAL
    ================================================================ */
@@ -214,6 +260,12 @@ body {
   border: 1px solid var(--border);
 }
 .btn-ghost:hover { border-color: var(--pink); color: var(--pink); }
+
+.btn-danger {
+  background: var(--danger);
+  color: var(--brown);
+}
+.btn-danger:hover { background: #e59798; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(217,138,139,.4); }
 
 .modal-close {
   position: absolute; top: 16px; right: 18px;
@@ -335,7 +387,7 @@ body {
   overflow-y: auto;
   max-height: 100vh;
   background:
-    url('/static/fondo.png') center/cover no-repeat fixed;
+    url('/static/img/fondo.png') center/cover no-repeat fixed;
   position: relative;
 }
 .main-content::before {
@@ -398,15 +450,32 @@ body {
 }
 .dk-bar-fill {
   height: 100%; border-radius: 8px;
-  background: linear-gradient(90deg, var(--blue), var(--pink));
+  background: var(--bg);
   transition: width .8s ease;
 }
+.dk-bar-fill.success { background: linear-gradient(90deg, var(--blue), var(--ok)); }
 .dk-bar-fill.warn { background: linear-gradient(90deg, var(--yellow), var(--pink)); }
-.dk-bar-fill.danger { background: linear-gradient(90deg, var(--pink), #d98a8b); }
+.dk-bar-fill.danger { background: linear-gradient(90deg, var(--pink), var(--danger)); }
 
 .dk-stats {
   display: flex; justify-content: space-between;
   font-size: .82rem; color: var(--muted);
+}
+
+.doughnut-chart {
+  position: relative;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .8s ease;
+}
+.doughnut-inner {
+  position: absolute;
+  width: 44px; height: 44px;
+  background: var(--card); /* Matches the card background to simulate ring */
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; font-weight: 800; color: var(--cream);
 }
 .dk-stats strong { color: var(--cream); }
 
