@@ -225,9 +225,12 @@
 
         <!-- VISTA A — Discos -->
         <div id="view-disks" style="display:none">
-          <div class="view-header">
-            <h1>Unidades de Almacenamiento</h1>
-            <p>Discos lógicos detectados en el servidor remoto</p>
+          <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-end; padding-right: 15px;">
+            <div>
+              <h1>Unidades de Almacenamiento</h1>
+              <p>Discos lógicos detectados en el servidor remoto</p>
+            </div>
+            <button class="btn btn-ghost" style="padding: 6px 16px; margin-bottom: 12px;" onclick="loadDisks()">🔄 Actualizar</button>
           </div>
           <div class="disks-grid" id="disks-container">
             <p style="color:var(--muted)">Cargando discos…</p>
@@ -245,9 +248,12 @@
 
         <!-- VISTA D — DHCP -->
         <div id="view-dhcp" style="display:none">
-          <div class="view-header">
-            <h1>Servidor DHCP</h1>
-            <p>Gestión de ámbitos, rangos de IP y asignaciones activas</p>
+          <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-end; padding-right: 15px;">
+            <div>
+              <h1>Servidor DHCP</h1>
+              <p>Gestión de ámbitos, rangos de IP y asignaciones activas</p>
+            </div>
+            <button class="btn btn-ghost" style="padding: 6px 16px; margin-bottom: 12px;" onclick="loadDhcp()">🔄 Actualizar</button>
           </div>
           <div class="dhcp-grid" id="dhcp-container">
             <p style="color:var(--muted)">Cargando scopes DHCP…</p>

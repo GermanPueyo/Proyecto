@@ -1,6 +1,10 @@
 from flask import render_template, request, jsonify, session, send_from_directory, current_app, Blueprint
 import winrm
-import os, secrets, threading, traceback, socket, ipaddress
+import os, secrets, threading, traceback, socket, ipaddress, warnings
+
+# Suppress PyWinRM CLIXML UserWarnings that pollute the terminal in Spanish Windows
+warnings.filterwarnings("ignore", category=UserWarning, module="winrm")
+
 from .database import get_all_servers, get_server, add_server, update_server, delete_server
 
 main_bp = Blueprint('main', __name__)
@@ -10,7 +14,6 @@ main_bp = Blueprint('main', __name__)
 # ------------------------------------------------------------------
 _sessions = {}
 _sessions_lock = threading.Lock()
-_winrm_locks = {}
 _metrics_cache = {}
 _bg_threads = {}
 
@@ -141,61 +144,78 @@ def api_connect():
             transport="ntlm",
             server_cert_validation="ignore"
         )
-        # Powerhell Script (Truncated for brevity in this scratch file, but full in real code)
+        # Powerhell Script
         script = r'''
-$c  = Get-CimInstance Win32_Processor
-$os = Get-CimInstance Win32_OperatingSystem
-$d  = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-$cs = Get-CimInstance Win32_ComputerSystem
-$net = Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True"
-$uptime = (Get-Date) - $os.LastBootUpTime
-$uptimeStr = "$($uptime.Days) d, $($uptime.Hours) h, $($uptime.Minutes) m"
-$role = if ($cs.PartOfDomain) { "Dominio" } else { "Grupo de Trabajo" }
-$l2 = ($c | Measure-Object L2CacheSize -Sum).Sum
-$l3 = ($c | Measure-Object L3CacheSize -Sum).Sum
-$netJson = @()
-foreach ($n in $net) {
-    $ipv4s = $n.IPAddress | Where-Object { $_ -match "\." }
-    $ip = if($ipv4s){$ipv4s -join ", "}else{"-"}
-    $gws = $n.DefaultIPGateway | Where-Object { $_ -match "\." }
-    $gw = if($gws){$gws -join ", "}else{"-"}
-    $dnss = $n.DNSServerSearchOrder | Where-Object { $_ -match "\." }
-    $dns = if($dnss){$dnss -join ", "}else{"-"}
-    $mac = if($n.MACAddress){$n.MACAddress}else{"-"}
-    $desc = if($n.Description){$n.Description}else{"Adaptador Desconocido"}
-    $netJson += "$desc~~$ip~~$mac~~$gw~~$dns"
+$ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
+try {
+    $c  = Get-CimInstance Win32_Processor -EA Stop
+    $os = Get-CimInstance Win32_OperatingSystem -EA Stop
+    $d  = try { Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'" -EA Stop } catch { $null }
+    $cs = Get-CimInstance Win32_ComputerSystem -EA Stop
+    $net = try { Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" -EA Stop } catch { @() }
+    
+    $uptime = (Get-Date) - $os.LastBootUpTime
+    $uptimeStr = "$($uptime.Days) d, $($uptime.Hours) h, $($uptime.Minutes) m"
+    $role = if ($cs.PartOfDomain) { "Dominio" } else { "Grupo de Trabajo" }
+    $l2 = ($c | Measure-Object L2CacheSize -Sum).Sum
+    $l3 = ($c | Measure-Object L3CacheSize -Sum).Sum
+    
+    $netAdapters = @()
+    foreach ($n in $net) {
+        $ipv4s = $n.IPAddress | Where-Object { $_ -match "\." }
+        $ip = if($ipv4s){$ipv4s -join ", "}else{"No disponible"}
+        $gws = $n.DefaultIPGateway | Where-Object { $_ -match "\." }
+        $gw = if($gws){$gws -join ", "}else{"No disponible"}
+        $dnss = $n.DNSServerSearchOrder | Where-Object { $_ -match "\." }
+        $dns = if($dnss){$dnss -join ", "}else{"No disponible"}
+        $mac = if($n.MACAddress){$n.MACAddress}else{"No disponible"}
+        $desc = if($n.Description){$n.Description}else{"Adaptador Desconocido"}
+        $netAdapters += @{ desc=$desc; ip=$ip; mac=$mac; gw=$gw; dns=$dns }
+    }
+    
+    $mem = try { Get-CimInstance Win32_PhysicalMemory -EA Stop } catch { $null }
+    $speed = if ($mem) { ($mem | Select-Object -First 1).Speed } else { 0 }
+    $manufacturer = if ($cs.Manufacturer) { $cs.Manufacturer } else { "Desconocido" }
+    
+    $specs = @{
+        ok = $true
+        cpu_name = $c[0].Name
+        cpu_cores = $c[0].NumberOfCores
+        cpu_logical = $c[0].NumberOfLogicalProcessors
+        cpu_speed = $c[0].MaxClockSpeed
+        ram_total_kb = $os.TotalVisibleMemorySize
+        disk_total_b = if($d){$d.Size}else{0}
+        cpu_l2_kb = $l2
+        cpu_l3_kb = $l3
+        cpu_virt = "$($c[0].VirtualizationFirmwareEnabled)"
+        os_version = "$($os.Caption) $($os.Version)"
+        uptime = $uptimeStr
+        hostname = $cs.Name
+        domain_role = $role
+        domain = $cs.Domain
+        net_adapters = $netAdapters
+        ram_speed = $speed
+        manufacturer = $manufacturer
+        server_roles = ""
+    }
+    Write-Output ($specs | ConvertTo-Json -Depth 5 -Compress)
+} catch {
+    $err = $_.Exception.Message.Replace('"', '\"').Replace("`n", " ")
+    Write-Output "{\`"ok\`":false,\`"error\`":\`"Excepcion de PS: $err\`"}"
 }
-$netJoined = $netJson -join "^^"
-$mem = Get-CimInstance Win32_PhysicalMemory -ErrorAction SilentlyContinue
-$speed = if ($mem) { ($mem | Select-Object -First 1).Speed } else { 0 }
-$manufacturer = if ($cs.Manufacturer) { $cs.Manufacturer } else { "Desconocido" }
-$rolesList = ""
-Write-Output ("$($c[0].Name)|$($c[0].NumberOfCores)|$($c[0].NumberOfLogicalProcessors)|$($c[0].MaxClockSpeed)|$($os.TotalVisibleMemorySize)|$($d.Size)|$l2|$l3|$($c[0].VirtualizationFirmwareEnabled)|$($os.Caption) $($os.Version)|$uptimeStr|$($cs.Name)|$role|$($cs.Domain)|$netJoined|$speed|$manufacturer|$rolesList")
 '''
+        import json
         raw = _run_ps(ws, script)
-        p = raw.split("|")
-        if len(p) < 17: raise ValueError("Respuesta incompleta")
-
-        net_raw = p[14] if len(p) > 14 else ""
-        net_adapters = []
-        if net_raw:
-            for n in net_raw.split("^^"):
-                parts = n.split("~~")
-                if len(parts) == 5:
-                    net_adapters.append({"desc": parts[0], "ip": parts[1], "mac": parts[2], "gw": parts[3], "dns": parts[4]})
-
-        specs = {
-            "cpu_name": p[0], "cpu_cores": p[1], "cpu_logical": p[2], "cpu_speed": p[3],
-            "ram_total_kb": p[4], "disk_total_b": p[5], "cpu_l2_kb": p[6], "cpu_l3_kb": p[7],
-            "cpu_virt": p[8], "os_version": p[9], "uptime": p[10], "hostname": p[11],
-            "domain_role": p[12], "domain": p[13], "net_adapters": net_adapters,
-            "ram_speed": p[15], "manufacturer": p[16], "server_roles": p[17] if len(p) > 17 else ""
-        }
+        try:
+            data = json.loads(raw)
+            if not data.get("ok"): raise ValueError(data.get("error", "Error interno PS"))
+            specs = data
+        except Exception as e:
+            raise ValueError(f"No se pudo analizar la estructura del servidor: {str(e)}")
 
         sid = secrets.token_hex(16)
         with _sessions_lock:
             _sessions[sid] = {"session": ws, "specs": specs, "ip": ip, "user": user, "pwd": pwd}
-            _winrm_locks[sid] = threading.Lock()
 
         t = threading.Thread(target=_bg_poller, args=(sid,), daemon=True)
         _bg_threads[sid] = t
@@ -217,7 +237,6 @@ def api_disconnect():
     if sid:
         with _sessions_lock:
             _sessions.pop(sid, None)
-            _winrm_locks.pop(sid, None)
             _metrics_cache.pop(sid, None)
     return jsonify({"ok": True})
 
@@ -236,22 +255,60 @@ def api_disks():
     entry = _get_ws(sid)
     if not entry or not entry.get("session"): return jsonify({"ok": False, "error": "No conectado"}), 401
     script = r'''
-$phys = Get-PhysicalDisk -ErrorAction SilentlyContinue
-Get-WmiObject Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object {
-    $total=[math]::Round($_.Size/1GB, 2); $free=[math]::Round($_.FreeSpace/1GB, 2); $pct=if($_.Size -gt 0){[math]::Round((($_.Size-$_.FreeSpace)/$_.Size)*100, 1)}else{0};
-    Write-Output "$($_.DeviceID)|$total|$free|$([math]::Round(($_.Size-$_.FreeSpace)/1GB, 2))|$pct|$($_.FileSystem)|$($_.VolumeName)"
-}'''
-    lock = _winrm_locks.get(sid)
-    with lock:
-        try:
-            raw = _run_ps(entry["session"], script)
-            disks = []
-            for line in raw.strip().splitlines():
-                cols = line.replace(",", ".").split("|")
-                if len(cols) >= 6:
-                    disks.append({"letter":cols[0],"total_gb":float(cols[1]),"free_gb":float(cols[2]),"used_gb":float(cols[3]),"used_pct":float(cols[4]),"filesystem":cols[5],"label":cols[6] if len(cols)>6 else "Sin etiqueta"})
-            return jsonify({"ok": True, "disks": disks})
-        except Exception as e: return jsonify({"ok": False, "error": str(e)}), 500
+$ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
+try {
+    $disks = @()
+    Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" -EA Stop | ForEach-Object {
+        $ld = $_
+        $media = "Desconocido"
+        $health = "No disponible"
+        $driveLetter = $ld.DeviceID
+        try {
+            $part = Get-Partition -DriveLetter $driveLetter[0] -ErrorAction SilentlyContinue
+            if ($part) {
+                $phys = Get-PhysicalDisk -ObjectId $part.DiskId -ErrorAction SilentlyContinue
+                if ($phys) {
+                    $media = $phys.MediaType
+                    $health = $phys.HealthStatus
+                }
+            }
+        } catch {}
+        $total = [math]::Round($ld.Size / 1GB, 2)
+        $free  = [math]::Round($ld.FreeSpace / 1GB, 2)
+        $used  = $total - $free
+        $pct   = if($total -gt 0) { [math]::Round(($used / $total) * 100, 2) } else { 0 }
+        
+        $disks += @{
+            letter = $driveLetter
+            total_gb = $total
+            free_gb = $free
+            used_gb = $used
+            used_pct = $pct
+            filesystem = $ld.FileSystem
+            label = if($ld.VolumeName){$ld.VolumeName}else{"Sin etiqueta"}
+            media_type = $media
+            health = $health
+        }
+    }
+    $res = @{ ok=$true; disks=$disks }
+    Write-Output ($res | ConvertTo-Json -Depth 5 -Compress)
+} catch {
+    $err = $_.Exception.Message.Replace('"', '\"').Replace("`n", " ")
+    Write-Output "{\`"ok\`":false,\`"error\`":\`"Excepcion de PS: $err\`"}"
+}
+'''
+    try:
+        import json
+        ws_temp = winrm.Session(
+            entry["ip"], auth=(entry["user"], entry["pwd"]),
+            transport="ntlm", server_cert_validation="ignore"
+        )
+        raw = _run_ps(ws_temp, script)
+        data = json.loads(raw)
+        if not data.get("ok"): return jsonify(data), 500
+        return jsonify({"ok": True, "disks": data.get("disks", [])})
+    except Exception as e: 
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @main_bp.route("/api/dhcp")
 def api_dhcp():
@@ -259,30 +316,53 @@ def api_dhcp():
     entry = _get_ws(sid)
     if not entry or not entry.get("session"): return jsonify({"ok": False, "error": "No conectado"}), 401
     script = r'''
-$svc = Get-Service dhcpserver -ErrorAction SilentlyContinue
-if (-not $svc) { Write-Output "NO_DHCP_ROLE" } else {
-    $scopes = Get-DhcpServerv4Scope -ErrorAction SilentlyContinue
-    if (-not $scopes) { Write-Output "NO_SCOPES" } else {
-        $statsAll = Get-DhcpServerv4ScopeStatistics
-        foreach ($s in $scopes) {
-            $stats = $statsAll | Where-Object ScopeId -eq $s.ScopeId
-            Write-Output "$($s.ScopeId)|$($s.Name)|$($s.StartRange)|$($s.EndRange)|$($s.SubnetMask)|$($stats.Free)|$($stats.InUse)|$($stats.PercentageInUse)"
+$ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
+try {
+    $svc = try { Get-Service dhcpserver -EA Stop } catch { $null }
+    if (-not $svc) {
+        Write-Output '{"ok":true, "dhcp_installed":false}'
+    } else {
+        $scopes = try { Get-DhcpServerv4Scope -EA Stop } catch { $null }
+        if (-not $scopes) {
+            Write-Output '{"ok":true, "dhcp_installed":true, "scopes":[]}'
+        } else {
+            $statsAll = Get-DhcpServerv4ScopeStatistics
+            $outScopes = @()
+            foreach ($s in $scopes) {
+                $stats = $statsAll | Where-Object ScopeId -eq $s.ScopeId
+                $pct = if ($stats.PercentageInUse) { $stats.PercentageInUse } else { 0 }
+                $outScopes += @{
+                    scope_id = "$($s.ScopeId)"
+                    name = "$($s.Name)"
+                    start_range = "$($s.StartRange)"
+                    end_range = "$($s.EndRange)"
+                    subnet_mask = "$($s.SubnetMask)"
+                    free = $stats.Free
+                    in_use = $stats.InUse
+                    pct_in_use = $pct
+                }
+            }
+            $res = @{ ok=$true; dhcp_installed=$true; scopes=$outScopes }
+            Write-Output ($res | ConvertTo-Json -Depth 5 -Compress)
         }
     }
-}'''
-    lock = _winrm_locks.get(sid)
-    with lock:
-        try:
-            raw = _run_ps(entry["session"], script).strip()
-            if "NO_DHCP_ROLE" in raw: return jsonify({"ok": True, "dhcp_installed": False})
-            if "NO_SCOPES" in raw: return jsonify({"ok": True, "dhcp_installed": True, "scopes": []})
-            scopes = []
-            for line in raw.splitlines():
-                cols = line.split("|")
-                if len(cols)>=8:
-                    scopes.append({"scope_id":cols[0],"name":cols[1],"start_range":cols[2],"end_range":cols[3],"subnet_mask":cols[4],"free":int(cols[5]),"in_use":int(cols[6]),"pct_in_use":float(cols[7].replace(",","."))})
-            return jsonify({"ok": True, "dhcp_installed": True, "scopes": scopes})
-        except Exception as e: return jsonify({"ok": False, "error": str(e)}), 500
+} catch {
+    $err = $_.Exception.Message.Replace('"', '\"').Replace("`n", " ")
+    Write-Output "{\`"ok\`":false,\`"error\`":\`"Excepcion de PS: $err\`"}"
+}
+'''
+    try:
+        import json
+        ws_temp = winrm.Session(
+            entry["ip"], auth=(entry["user"], entry["pwd"]),
+            transport="ntlm", server_cert_validation="ignore"
+        )
+        raw = _run_ps(ws_temp, script)
+        data = json.loads(raw)
+        if not data.get("ok"): return jsonify(data), 500
+        return jsonify(data)
+    except Exception as e: 
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @main_bp.route("/api/dhcp/ips")
 def api_dhcp_ips():
@@ -299,33 +379,73 @@ def api_dhcp_ips():
 def _bg_poller(sid):
     import time
     script = r'''
-$cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
-if($null -eq $cpu){$cpu=0}
-$os  = Get-CimInstance Win32_OperatingSystem
-$pd  = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'"
-$sys = Get-CimInstance Win32_PerfFormattedData_PerfOS_System
-$n = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface | Select-Object -First 1
-$rx = if($n){$n.BytesReceivedPersec}else{0}; $tx = if($n){$n.BytesSentPersec}else{0}
-Write-Output "$cpu|$($os.FreePhysicalMemory)|$($pd[0].PercentDiskTime)|$rx|$tx|$($sys.Processes)|$($sys.Threads)|$($os.NumberOfProcesses)|$($pd[0].DiskReadBytesPersec)|$($pd[0].DiskWriteBytesPersec)"
+$ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
+try {
+    $cpu = try { (Get-CimInstance Win32_Processor -EA Stop | Measure-Object -Property LoadPercentage -Average).Average } catch { 0 }
+    if ($null -eq $cpu) { $cpu = 0 }
+    $os  = try { Get-CimInstance Win32_OperatingSystem -EA Stop } catch { $null }
+    $ram = if ($os) { $os.FreePhysicalMemory } else { 1 }
+    $procs = if ($os) { $os.NumberOfProcesses } else { 0 }
+
+    $pd  = try { Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'" -EA Stop | Select-Object -First 1 } catch { $null }
+    $dTime = if ($pd) { $pd.PercentDiskTime } else { 0 }
+    $dRead = if ($pd) { $pd.DiskReadBytesPersec } else { 0 }
+    $dWrite= if ($pd) { $pd.DiskWriteBytesPersec } else { 0 }
+
+    $sys = try { Get-CimInstance Win32_PerfFormattedData_PerfOS_System -EA Stop } catch { $null }
+    $sysP = if ($sys) { $sys.Processes } else { $procs }
+    $sysT = if ($sys) { $sys.Threads } else { 0 }
+
+    $rx = 0; $tx = 0
+    $n = try { Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -EA Stop | Select-Object -First 1 } catch { $null }
+    if ($n) { $rx = $n.BytesReceivedPersec; $tx = $n.BytesSentPersec }
+
+    $res = @{
+        ok = $true
+        cpu = $cpu; ramFree = $ram; dTime = $dTime
+        rx = $rx; tx = $tx; sysP = $sysP; sysT = $sysT
+        procs = $procs; dRead = $dRead; dWrite = $dWrite
+    }
+    Write-Output ($res | ConvertTo-Json -Compress)
+} catch {
+    $err = $_.Exception.Message.Replace('"', '\"').Replace("`n", " ")
+    Write-Output "{\`"ok\`":false,\`"error\`":\`"Excepcion de PS: $err\`"}"
+}
 '''
+    import json
     while True:
         with _sessions_lock:
             if sid not in _sessions: break
-        entry = _sessions.get(sid); lock = _winrm_locks.get(sid)
-        if not entry or not lock: break
+        
+        entry = _sessions.get(sid)
+        if not entry: break
+        
         ws = entry.get("session")
-        if not ws: time.sleep(1); continue
+        if not ws: 
+            time.sleep(1)
+            continue
+            
         try:
-            with lock:
-                raw = _run_ps(ws, script)
-                p = raw.replace(",", ".").split("|")
-                if len(p) >= 10:
-                    rt = float(entry["specs"].get("ram_total_kb", 1)); rf = float(p[1] or 0)
-                    _metrics_cache[sid] = {
-                        "cpu": round(float(p[0] or 0), 1), "ram": round(((rt - rf) / rt) * 100, 1),
-                        "disk": round(float(p[2] or 0), 1), "recv_mbps": round((float(p[3] or 0)*8)/1e6, 2),
-                        "sent_mbps": round((float(p[4] or 0)*8)/1e6, 2), "processes": p[5], "threads": p[6],
-                        "disk_read": round(float(p[8] or 0)/1048576, 2), "disk_write": round(float(p[9] or 0)/1048576, 2)
-                    }
-        except: entry["session"] = None
+            raw = _run_ps(ws, script)
+            data = json.loads(raw)
+            if data.get("ok"):
+                rt = float(entry["specs"].get("ram_total_kb", 1))
+                rf = float(data.get("ramFree") or 0)
+                _metrics_cache[sid] = {
+                    "cpu": round(float(data.get("cpu") or 0), 1), 
+                    "ram": round(((rt - rf) / rt) * 100, 1),
+                    "disk": round(float(data.get("dTime") or 0), 1), 
+                    "recv_mbps": round((float(data.get("rx") or 0)*8)/1e6, 2),
+                    "sent_mbps": round((float(data.get("tx") or 0)*8)/1e6, 2), 
+                    "processes": data.get("sysP") or 0, 
+                    "threads": data.get("sysT") or 0,
+                    "disk_read": round(float(data.get("dRead") or 0)/1048576, 2), 
+                    "disk_write": round(float(data.get("dWrite") or 0)/1048576, 2)
+                }
+            else:
+                current_app.logger.error(f"Poller PS Error for {sid}: {data.get('error')}")
+        except Exception as e:
+            current_app.logger.warning(f"Poller Exception for {sid}: {e}")
+            time.sleep(1)
+            
         time.sleep(1)

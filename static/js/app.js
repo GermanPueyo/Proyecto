@@ -294,6 +294,12 @@ function enterDashboard(ip) {
 
   for (const k in history) history[k] = [];
 
+  // Clear previous server's modules to prevent data phantom crossover
+  document.getElementById('disks-container').innerHTML = '';
+  document.getElementById('specs-container').innerHTML = '';
+  document.getElementById('dhcp-container').innerHTML = '';
+  document.getElementById('ip-list-container').innerHTML = '';
+
   // Switch view first so the canvas containers are visible
   switchView('monitor', document.querySelector('[data-view="monitor"]'));
 
@@ -340,15 +346,7 @@ async function fetchMetricsOnce() {
     updateStats(d);
 
     // Auto-refresh secondary views seamlessly every ~3 seconds if they are visible
-    if (_pollTicks % 3 === 0) {
-      if (document.getElementById('view-disks').style.display !== 'none') {
-        loadDisks(); // Smooth update
-      }
-      // DHCP usually doesn't need to refresh every 3 seconds, but we can do it if visible
-      if (document.getElementById('view-dhcp').style.display !== 'none' && !document.getElementById('dhcp-modal').classList.contains('active')) {
-        loadDhcp();
-      }
-    }
+    // (Removed by user request: Disks and DHCP are now refreshed manually via button)
   } catch (e) {
     // Silently retry next interval
   }
@@ -553,7 +551,7 @@ function updateStats(d) {
    ============================================================= */
 async function loadDisks(retries = 3) {
   const c = document.getElementById('disks-container');
-  if (c.innerHTML.indexOf('disk-card') === -1) {
+  if (c.innerHTML.trim() === '') {
     c.innerHTML = '<p style="color:var(--muted)">Cargando discos…</p>';
   }
 
@@ -629,9 +627,9 @@ async function loadDisks(retries = 3) {
               <div class="dk-bar-fill ${barClass}" style="width:${dk.used_pct}%"></div>
             </div>
             <div class="dk-stats">
-              <span>Usado: <strong style="color:var(--cream);font-size:0.95rem">${dk.used_gb} GB (${dk.used_pct}%)</strong></span>
-              <span>Libre: <strong style="font-size:0.95rem">${dk.free_gb} GB</strong></span>
-              <span>Total: <strong>${dk.total_gb} GB</strong></span>
+              <span>Usado: <strong style="color:var(--cream);font-size:0.95rem">${Number(dk.used_gb).toFixed(2)} GB (${dk.used_pct}%)</strong></span>
+              <span>Libre: <strong style="font-size:0.95rem">${Number(dk.free_gb).toFixed(2)} GB</strong></span>
+              <span>Total: <strong>${Number(dk.total_gb).toFixed(2)} GB</strong></span>
             </div>
           </div>`;
       }
@@ -651,7 +649,7 @@ async function loadDisks(retries = 3) {
    ============================================================= */
 async function loadDhcp() {
   const c = document.getElementById('dhcp-container');
-  if (c.innerHTML.indexOf('disk-card') === -1) {
+  if (c.innerHTML.trim() === '') {
     c.innerHTML = '<p style="color:var(--muted)">Consultando servidor DHCP...</p>';
   }
   try {
