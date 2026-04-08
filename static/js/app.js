@@ -293,6 +293,8 @@ function enterDashboard(ip) {
   document.getElementById('footer-ip').textContent = ip;
 
   for (const k in history) history[k] = [];
+  _disksLoaded = false;
+  _dhcpLoaded = false;
 
   // Clear previous server's modules to prevent data phantom crossover
   document.getElementById('disks-container').innerHTML = '';
@@ -311,6 +313,7 @@ function enterDashboard(ip) {
       setupKpiToggles();
       renderSpecs();
       loadDisks();
+      loadDhcp(); // Pre-load DHCP in the background seamlessly
       startPolling();
     }, 100);
   });
@@ -370,6 +373,7 @@ function doDisconnect() {
 
   if (chartCpuRam) { chartCpuRam.destroy(); chartCpuRam = null; }
   if (chartNet) { chartNet.destroy(); chartNet = null; }
+  IP_CACHE = {};
 
   // Refresh server cards on return to Home
   loadServerCards();
@@ -549,7 +553,10 @@ function updateStats(d) {
 /* =============================================================
    DISKS VIEW
    ============================================================= */
-async function loadDisks(retries = 3) {
+let _disksLoaded = false;
+async function loadDisks(force = false) {
+  if (!force && _disksLoaded) return;
+  
   const c = document.getElementById('disks-container');
   if (c.innerHTML.trim() === '') {
     c.innerHTML = '<p style="color:var(--muted)">Cargando discos…</p>';
@@ -559,13 +566,11 @@ async function loadDisks(retries = 3) {
     const res = await fetch('/api/disks?sid=' + SID);
     const data = await res.json();
     if (!data.ok || !data.disks || !data.disks.length) {
-      if (retries > 0) {
-        setTimeout(() => loadDisks(retries - 1), 3000);
-        return;
-      }
       c.innerHTML = '<p style="color:var(--muted)">No se encontraron discos.</p>';
       return;
     }
+    
+    _disksLoaded = true;
 
     // Smooth DOM update to preserve transitions
     let html = '';
@@ -647,7 +652,12 @@ async function loadDisks(retries = 3) {
 /* =============================================================
    DHCP VIEW
    ============================================================= */
-async function loadDhcp() {
+let IP_CACHE = {};
+let _dhcpLoaded = false;
+
+async function loadDhcp(force = false) {
+  if (!force && _dhcpLoaded) return;
+  IP_CACHE = {}; // Clear IP cache when refreshing DHCP scopes
   const c = document.getElementById('dhcp-container');
   if (c.innerHTML.trim() === '') {
     c.innerHTML = '<p style="color:var(--muted)">Consultando servidor DHCP...</p>';
@@ -660,6 +670,8 @@ async function loadDhcp() {
       c.innerHTML = `<p style="color:var(--danger)">Error: ${data.error}</p>`;
       return;
     }
+    _dhcpLoaded = true;
+    
     if (!data.dhcp_installed) {
       c.innerHTML = `<div class="spec-card"><h3>Rol no detectado</h3><p style="color:var(--muted);margin-top:6px;">El servicio DHCP Server no está instalado o no se puede acceder a él en este servidor.</p></div>`;
       return;
@@ -730,8 +742,15 @@ async function openDhcpModal(scopeId, scopeName) {
   document.getElementById('dhcp-modal-sub').textContent = 'Cargando direcciones IP...';
 
   const c = document.getElementById('ip-list-container');
-  c.innerHTML = '<p style="color:var(--muted);text-align:center;margin-top:20px;">Consultando pool vía WinRM...</p>';
+  
+  if (IP_CACHE[scopeId]) {
+    document.getElementById('dhcp-modal-sub').textContent = IP_CACHE[scopeId].subText;
+    c.innerHTML = IP_CACHE[scopeId].html;
+    document.getElementById('dhcp-modal').classList.add('active');
+    return;
+  }
 
+  c.innerHTML = '<p style="color:var(--muted);text-align:center;margin-top:20px;">Consultando pool vía WinRM...</p>';
   document.getElementById('dhcp-modal').classList.add('active');
 
   try {
@@ -743,13 +762,17 @@ async function openDhcpModal(scopeId, scopeName) {
       return;
     }
 
-    document.getElementById('dhcp-modal-sub').textContent = `Subred: ${scopeId} — ${data.ips.length} IPs totales`;
+    let subText = `Subred: ${scopeId} — ${data.total} IPs totales`;
+    if (data.truncated) {
+        subText += " (Limitado a 1000 iteraciones para no bloquear el navegador)";
+    }
+    document.getElementById('dhcp-modal-sub').textContent = subText;
 
-    c.innerHTML = data.ips.map(item => {
-      const isFree = item.free;
-      const statusIcon = isFree ? '✔️' : '❌';
+    c.innerHTML = '<div class="ip-list-grid">' + data.ips.map(item => {
+      const isFree = !item.in_use;
+      const statusIcon = isFree ? '✅' : '❌';
       const statusClass = isFree ? 'free' : 'used';
-      const statusText = isFree ? 'Disponible' : 'En uso';
+      const statusText = isFree ? 'Libre' : 'En uso';
 
       return `
         <div class="ip-item ${statusClass}">
@@ -757,7 +780,12 @@ async function openDhcpModal(scopeId, scopeName) {
           <span class="ip-status" title="${statusText}">${statusIcon}</span>
         </div>
       `;
-    }).join('');
+    }).join('') + '</div>';
+
+    IP_CACHE[scopeId] = {
+      subText: subText,
+      html: c.innerHTML
+    };
 
   } catch (e) {
     c.innerHTML = '<p style="color:var(--danger);text-align:center;">Error de red al consultar IPs</p>';

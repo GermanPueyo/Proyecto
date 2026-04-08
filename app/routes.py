@@ -1,9 +1,10 @@
 from flask import render_template, request, jsonify, session, send_from_directory, current_app, Blueprint
 import winrm
-import os, secrets, threading, traceback, socket, ipaddress, warnings
+import os, secrets, threading, traceback, socket, ipaddress, warnings, logging
 
 # Suppress PyWinRM CLIXML UserWarnings that pollute the terminal in Spanish Windows
 warnings.filterwarnings("ignore", category=UserWarning, module="winrm")
+logger = logging.getLogger(__name__)
 
 from .database import get_all_servers, get_server, add_server, update_server, delete_server
 
@@ -233,11 +234,17 @@ try {
 
 @main_bp.route("/api/disconnect", methods=["POST"])
 def api_disconnect():
-    sid = session.pop("sid", None) or (request.get_json(force=True) or {}).get("sid")
-    if sid:
+    payload_sid = (request.get_json(force=True) or {}).get("sid")
+    flask_sid = session.get("sid")
+    
+    if payload_sid and flask_sid == payload_sid:
+        session.pop("sid", None)
+    
+    sid_to_remove = payload_sid or flask_sid
+    if sid_to_remove:
         with _sessions_lock:
-            _sessions.pop(sid, None)
-            _metrics_cache.pop(sid, None)
+            _sessions.pop(sid_to_remove, None)
+            _metrics_cache.pop(sid_to_remove, None)
     return jsonify({"ok": True})
 
 @main_bp.route("/api/metrics")
@@ -366,12 +373,79 @@ try {
 
 @main_bp.route("/api/dhcp/ips")
 def api_dhcp_ips():
+    import ipaddress, json
     sid = request.args.get("sid") or session.get("sid"); scope_id = request.args.get("scope")
     entry = _get_ws(sid)
     if not entry or not entry.get("session") or not scope_id: return jsonify({"ok": False, "error": "Invalid"}), 401
-    script = f'Get-DhcpServerv4Scope -ScopeId "{scope_id}"; Get-DhcpServerv4Lease -ScopeId "{scope_id}"'
-    # For now returning dummy/simplified due to complexity of range generation here
-    return jsonify({"ok": True, "ips": []})
+    
+    script = f'''
+$ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
+try {{
+    $scope = Get-DhcpServerv4Scope -ScopeId "{scope_id}" -EA Stop
+    $leases = @()
+    try {{
+        $leasesData = Get-DhcpServerv4Lease -ScopeId "{scope_id}" -EA Stop
+        foreach ($l in $leasesData) {{ $leases += "$($l.IPAddress)" }}
+    }} catch {{}}
+    
+    $res = @{{
+        ok = $true
+        start = "$($scope.StartRange)"
+        end = "$($scope.EndRange)"
+        leases = $leases
+    }}
+    Write-Output ($res | ConvertTo-Json -Depth 4 -Compress)
+}} catch {{
+    $err = $_.Exception.Message.Replace('"', '\\"').Replace("`n", " ")
+    Write-Output "{{\\`"ok\\`":false,\\`"error\\`":\\`"Excepcion de PS: $err\\`"}}"
+}}
+'''
+    try:
+        ws_temp = winrm.Session(
+            entry["ip"], auth=(entry["user"], entry["pwd"]),
+            transport="ntlm", server_cert_validation="ignore"
+        )
+        raw = _run_ps(ws_temp, script)
+        data = json.loads(raw)
+        if not data.get("ok"): return jsonify(data), 500
+        
+        start_ip = data.get("start")
+        end_ip = data.get("end")
+        raw_leases = data.get("leases")
+        if isinstance(raw_leases, str): raw_leases = [raw_leases]
+        if not raw_leases: raw_leases = []
+        leases = set(raw_leases)
+        
+        try:
+            start_val = int(ipaddress.IPv4Address(start_ip))
+            end_val = int(ipaddress.IPv4Address(end_ip))
+        except:
+            return jsonify({"ok": False, "error": "Rango de IPs inválido devuelto por PowerShell"}), 500
+            
+        total_ips = end_val - start_val + 1
+        limit = 1000
+        is_truncated = False
+        
+        if total_ips > limit:
+            end_val = start_val + limit - 1
+            is_truncated = True
+            
+        ips = []
+        for ip_int in range(start_val, end_val + 1):
+            ip_str = str(ipaddress.IPv4Address(ip_int))
+            ips.append({
+                "ip": ip_str,
+                "in_use": ip_str in leases
+            })
+            
+        return jsonify({
+            "ok": True, 
+            "ips": ips, 
+            "total": total_ips, 
+            "truncated": is_truncated
+        })
+    except Exception as e: 
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 # ------------------------------------------------------------------
 # Background Poller
@@ -443,9 +517,9 @@ try {
                     "disk_write": round(float(data.get("dWrite") or 0)/1048576, 2)
                 }
             else:
-                current_app.logger.error(f"Poller PS Error for {sid}: {data.get('error')}")
+                logger.error(f"Poller PS Error for {sid}: {data.get('error')}")
         except Exception as e:
-            current_app.logger.warning(f"Poller Exception for {sid}: {e}")
+            logger.warning(f"Poller Exception for {sid}: {e}")
             time.sleep(1)
             
         time.sleep(1)
