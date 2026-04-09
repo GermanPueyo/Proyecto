@@ -489,21 +489,25 @@ def _bg_poller(sid):
 $WarningPreference='SilentlyContinue';$ProgressPreference='SilentlyContinue'
 while($true) {
   try {
-    # We fetch metrics using standard CIM classes
-    $c = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'" -Property PercentProcessorTime).PercentProcessorTime
-    $o = Get-CimInstance Win32_OperatingSystem -Property FreePhysicalMemory
-    $d = (Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'" -Property PercentDiskTime).PercentDiskTime
-    # Use FormattedData to get the instantaneous bps rate directly
-    $ni = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -Property BytesTotalPersec | Where-Object { $_.Name -notmatch 'Loopback' }
-    $nt = ($ni | Measure-Object BytesTotalPersec -Sum).Sum
+    # Fetch core platform metrics using high-speed CIM classes
+    $cpu = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'" -Property PercentProcessorTime).PercentProcessorTime
+    $os  = Get-CimInstance Win32_OperatingSystem -Property FreePhysicalMemory, NumberOfProcesses
+    $dsk = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'" -Property PercentDiskTime, DiskReadBytesPersec, DiskWriteBytesPersec
+    $sys = Get-CimInstance Win32_PerfFormattedData_PerfOS_System -Property Threads
     
-    # Use an object and ConvertTo-Json to ensure correct JSON formatting (dots vs commas)
+    $ni = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -Property BytesTotalPersec | Where-Object { $_.Name -notmatch 'Loopback' }
+    $net = ($ni | Measure-Object BytesTotalPersec -Sum).Sum
+    
     $data = @{
       ok = $true
-      cpu = [Math]::Round([double]$c, 1)
-      ramFreeMB = [Math]::Round([double]$o.FreePhysicalMemory/1024, 0)
-      dTime = [Math]::Round([Math]::Min(100, [double]$d), 1)
-      netTotal = [double]$nt
+      cpu = [Math]::Round([double]$cpu, 1)
+      ramFreeMB = [Math]::Round([double]$os.FreePhysicalMemory/1024, 0)
+      procs = [int]$os.NumberOfProcesses
+      threads = [int]$sys.Threads
+      dTime = [Math]::Round([Math]::Min(100, [double]$dsk.PercentDiskTime), 1)
+      dRead = [Math]::Round([double]$dsk.DiskReadBytesPersec / 1MB, 2)
+      dWrite = [Math]::Round([double]$dsk.DiskWriteBytesPersec / 1MB, 2)
+      netTotal = [double]$net
     }
     Write-Output ($data | ConvertTo-Json -Compress)
   } catch {
@@ -567,8 +571,10 @@ while($true) {
                                     "disk": data.get("dTime", 0),
                                     "recv_mbps": round(mbps * 0.7, 2),
                                     "sent_mbps": round(mbps * 0.3, 2),
-                                    "processes": entry["specs"].get("procs", 0),
-                                    "threads": 0, "disk_read": 0, "disk_write": 0
+                                    "processes": data.get("procs") or 0,
+                                    "threads": data.get("threads") or 0,
+                                    "disk_read": data.get("dRead") or 0,
+                                    "disk_write": data.get("dWrite") or 0
                                 }
                             else:
                                 logger.warning(f"PS Stream Error from server {sid}: {data.get('error')}")
