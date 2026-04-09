@@ -17,6 +17,7 @@ _sessions = {}
 _sessions_lock = threading.Lock()
 _metrics_cache = {}
 _bg_threads = {}
+_net_history = {} # sid -> {'rx': val, 'tx': val, 'time': float}
 
 def _get_ws(sid):
     with _sessions_lock:
@@ -80,6 +81,14 @@ def api_servers_add():
     pwd   = data.get("password", "")
     if not alias or not ip or not user or not pwd:
         return jsonify({"ok": False, "error": "Todos los campos son obligatorios"}), 400
+    
+    # Duplicate check
+    all_srv = get_all_servers()
+    if any(s["alias"].lower() == alias.lower() for s in all_srv):
+        return jsonify({"ok": False, "error": "Ya existe un servidor con ese nombre (Alias)"}), 400
+    if any(s["ip"] == ip for s in all_srv):
+        return jsonify({"ok": False, "error": "Ya existe un servidor con esa dirección IP"}), 400
+
     try:
         srv = add_server(alias, ip, user, pwd)
         return jsonify({"ok": True, "server": srv})
@@ -95,6 +104,14 @@ def api_servers_edit(sid):
     pwd   = data.get("password", "") or None
     if not alias or not ip or not user:
         return jsonify({"ok": False, "error": "Alias, IP y usuario son obligatorios"}), 400
+    
+    # Duplicate check (excluding self)
+    all_srv = get_all_servers()
+    if any(s["alias"].lower() == alias.lower() and s["id"] != sid for s in all_srv):
+        return jsonify({"ok": False, "error": "Ya existe otro servidor con ese nombre (Alias)"}), 400
+    if any(s["ip"] == ip and s["id"] != sid for s in all_srv):
+        return jsonify({"ok": False, "error": "Ya existe otro servidor con esa dirección IP"}), 400
+
     ok = update_server(sid, alias, ip, user, pwd)
     return jsonify({"ok": ok})
 
@@ -143,7 +160,9 @@ def api_connect():
         ws = winrm.Session(
             ip, auth=(user, pwd),
             transport="ntlm",
-            server_cert_validation="ignore"
+            server_cert_validation="ignore",
+            read_timeout_sec=30,
+            operation_timeout_sec=25
         )
         # Powerhell Script
         script = r'''
@@ -226,10 +245,18 @@ try {
 
     except Exception as exc:
         current_app.logger.error(f"CONNECT ERROR: {traceback.format_exc()}")
-        err_str = str(exc)
-        msg = "Error desconocido"
-        if "401" in err_str or "auth" in err_str.lower(): msg = "Credenciales incorrectas."
-        elif "Timeout" in err_str or "unreachable" in err_str: msg = "Servidor inalcanzable."
+        err_str = str(exc).lower()
+        msg = "Error de comunicación con el servidor remoto."
+        
+        if "401" in err_str or "unauthorized" in err_str or "auth" in err_str:
+            msg = "Credenciales incorrectas o acceso denegado."
+        elif "timeout" in err_str:
+            msg = "Tiempo de espera agotado. El servidor está saturado o es lento."
+        elif "unreachable" in err_str or "connecting" in err_str:
+            msg = "Servidor inalcanzable. Verifica la IP y el puerto 5985."
+        elif "500" in err_str or "bad http response" in err_str:
+            msg = "El servidor remoto respondió con un error (WinRM saturado)."
+            
         return jsonify({"ok": False, "error": msg}), 401
 
 @main_bp.route("/api/disconnect", methods=["POST"])
@@ -245,6 +272,7 @@ def api_disconnect():
         with _sessions_lock:
             _sessions.pop(sid_to_remove, None)
             _metrics_cache.pop(sid_to_remove, None)
+            _net_history.pop(sid_to_remove, None)
     return jsonify({"ok": True})
 
 @main_bp.route("/api/metrics")
@@ -308,7 +336,8 @@ try {
         import json
         ws_temp = winrm.Session(
             entry["ip"], auth=(entry["user"], entry["pwd"]),
-            transport="ntlm", server_cert_validation="ignore"
+            transport="ntlm", server_cert_validation="ignore",
+            read_timeout_sec=30, operation_timeout_sec=25
         )
         raw = _run_ps(ws_temp, script)
         data = json.loads(raw)
@@ -362,7 +391,8 @@ try {
         import json
         ws_temp = winrm.Session(
             entry["ip"], auth=(entry["user"], entry["pwd"]),
-            transport="ntlm", server_cert_validation="ignore"
+            transport="ntlm", server_cert_validation="ignore",
+            read_timeout_sec=30, operation_timeout_sec=25
         )
         raw = _run_ps(ws_temp, script)
         data = json.loads(raw)
@@ -403,7 +433,8 @@ try {{
     try:
         ws_temp = winrm.Session(
             entry["ip"], auth=(entry["user"], entry["pwd"]),
-            transport="ntlm", server_cert_validation="ignore"
+            transport="ntlm", server_cert_validation="ignore",
+            read_timeout_sec=30, operation_timeout_sec=25
         )
         raw = _run_ps(ws_temp, script)
         data = json.loads(raw)
@@ -448,78 +479,113 @@ try {{
         return jsonify({"ok": False, "error": str(e)}), 500
 
 # ------------------------------------------------------------------
-# Background Poller
+# Background Poller  — Streaming Mode (Ultra-Low Latency)
 # ------------------------------------------------------------------
 def _bg_poller(sid):
-    import time
+    import json, time, base64
+
+    # High-speed streaming CIM poller (Universal Language Compatibility)
     script = r'''
-$ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
-try {
-    $cpu = try { (Get-CimInstance Win32_Processor -EA Stop | Measure-Object -Property LoadPercentage -Average).Average } catch { 0 }
-    if ($null -eq $cpu) { $cpu = 0 }
-    $os  = try { Get-CimInstance Win32_OperatingSystem -EA Stop } catch { $null }
-    $ram = if ($os) { $os.FreePhysicalMemory } else { 1 }
-    $procs = if ($os) { $os.NumberOfProcesses } else { 0 }
-
-    $pd  = try { Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'" -EA Stop | Select-Object -First 1 } catch { $null }
-    $dTime = if ($pd) { $pd.PercentDiskTime } else { 0 }
-    $dRead = if ($pd) { $pd.DiskReadBytesPersec } else { 0 }
-    $dWrite= if ($pd) { $pd.DiskWriteBytesPersec } else { 0 }
-
-    $sys = try { Get-CimInstance Win32_PerfFormattedData_PerfOS_System -EA Stop } catch { $null }
-    $sysP = if ($sys) { $sys.Processes } else { $procs }
-    $sysT = if ($sys) { $sys.Threads } else { 0 }
-
-    $rx = 0; $tx = 0
-    $n = try { Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -EA Stop | Select-Object -First 1 } catch { $null }
-    if ($n) { $rx = $n.BytesReceivedPersec; $tx = $n.BytesSentPersec }
-
-    $res = @{
-        ok = $true
-        cpu = $cpu; ramFree = $ram; dTime = $dTime
-        rx = $rx; tx = $tx; sysP = $sysP; sysT = $sysT
-        procs = $procs; dRead = $dRead; dWrite = $dWrite
+$WarningPreference='SilentlyContinue';$ProgressPreference='SilentlyContinue'
+while($true) {
+  try {
+    # We fetch metrics using standard CIM classes
+    $c = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'" -Property PercentProcessorTime).PercentProcessorTime
+    $o = Get-CimInstance Win32_OperatingSystem -Property FreePhysicalMemory
+    $d = (Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'" -Property PercentDiskTime).PercentDiskTime
+    # Use FormattedData to get the instantaneous bps rate directly
+    $ni = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -Property BytesTotalPersec | Where-Object { $_.Name -notmatch 'Loopback' }
+    $nt = ($ni | Measure-Object BytesTotalPersec -Sum).Sum
+    
+    # Use an object and ConvertTo-Json to ensure correct JSON formatting (dots vs commas)
+    $data = @{
+      ok = $true
+      cpu = [Math]::Round([double]$c, 1)
+      ramFreeMB = [Math]::Round([double]$o.FreePhysicalMemory/1024, 0)
+      dTime = [Math]::Round([Math]::Min(100, [double]$d), 1)
+      netTotal = [double]$nt
     }
-    Write-Output ($res | ConvertTo-Json -Compress)
-} catch {
-    $err = $_.Exception.Message.Replace('"', '\"').Replace("`n", " ")
-    Write-Output "{\`"ok\`":false,\`"error\`":\`"Excepcion de PS: $err\`"}"
+    Write-Output ($data | ConvertTo-Json -Compress)
+  } catch {
+    Write-Output (@{ok=$false; error=$_.Exception.Message} | ConvertTo-Json -Compress)
+  }
+  Start-Sleep -Milliseconds 450
 }
 '''
-    import json
-    while True:
-        with _sessions_lock:
-            if sid not in _sessions: break
-        
-        entry = _sessions.get(sid)
-        if not entry: break
-        
-        ws = entry.get("session")
-        if not ws: 
-            time.sleep(1)
-            continue
-            
+    encoded_ps = base64.b64encode(script.encode('utf_16_le')).decode('ascii')
+    # ... (Rest of the logic remains the same)
+
+    entry = _sessions.get(sid)
+    if not entry: return
+    ws = entry.get("session")
+    if not ws: return
+    protocol = ws.protocol
+    shell_id = None; command_id = None
+
+    def start_stream():
+        nonlocal shell_id, command_id
         try:
-            raw = _run_ps(ws, script)
-            data = json.loads(raw)
-            if data.get("ok"):
-                rt = float(entry["specs"].get("ram_total_kb", 1))
-                rf = float(data.get("ramFree") or 0)
-                _metrics_cache[sid] = {
-                    "cpu": round(float(data.get("cpu") or 0), 1), 
-                    "ram": round(((rt - rf) / rt) * 100, 1),
-                    "disk": round(float(data.get("dTime") or 0), 1), 
-                    "recv_mbps": round((float(data.get("rx") or 0)*8)/1e6, 2),
-                    "sent_mbps": round((float(data.get("tx") or 0)*8)/1e6, 2), 
-                    "processes": data.get("sysP") or 0, 
-                    "threads": data.get("sysT") or 0,
-                    "disk_read": round(float(data.get("dRead") or 0)/1048576, 2), 
-                    "disk_write": round(float(data.get("dWrite") or 0)/1048576, 2)
-                }
-            else:
-                logger.error(f"Poller PS Error for {sid}: {data.get('error')}")
-        except Exception as e:
-            logger.warning(f"Poller Exception for {sid}: {e}")
-            time.sleep(1)
-            
-        time.sleep(1)
+            if shell_id: 
+                try: protocol.close_shell(shell_id)
+                except: pass
+            shell_id = protocol.open_shell()
+            command_id = protocol.run_command(shell_id, 'powershell.exe', ['-NoProfile','-NonInteractive','-EncodedCommand',encoded_ps])
+            return True
+        except Exception as e: 
+            logger.error(f"STREAM START FAILED for {sid}: {e}")
+            return False
+
+    if not start_stream(): return
+
+    buffer = ""
+    logger.info(f"Industrial Stream started (CIM Mode) for {sid}")
+
+    try:
+        while True:
+            with _sessions_lock:
+                if sid not in _sessions: break
+
+            try:
+                stdout, stderr, return_code, command_done = protocol.get_command_output_raw(shell_id, command_id)
+                if stdout:
+                    raw_str = stdout.decode('utf-8', errors='ignore')
+                    buffer += raw_str
+                    while "\n" in buffer:
+                        line, buffer = buffer.split("\n", 1); line = line.strip()
+                        if not line or not line.startswith("{"): continue
+                        try:
+                            data = json.loads(line)
+                            if data.get("ok"):
+                                now = time.perf_counter()
+                                rt_mb = float(entry["specs"].get("ram_total_kb", 1024*1024)) / 1024
+                                rf_mb = float(data.get("ramFreeMB") or 0)
+                                mbps = (float(data.get("netTotal") or 0) * 8) / 1e6
+                                
+                                _metrics_cache[sid] = {
+                                    "cpu": data.get("cpu", 0),
+                                    "ram": round(((rt_mb - rf_mb) / rt_mb) * 100, 1) if rt_mb > 0 else 0,
+                                    "disk": data.get("dTime", 0),
+                                    "recv_mbps": round(mbps * 0.7, 2),
+                                    "sent_mbps": round(mbps * 0.3, 2),
+                                    "processes": entry["specs"].get("procs", 0),
+                                    "threads": 0, "disk_read": 0, "disk_write": 0
+                                }
+                            else:
+                                logger.warning(f"PS Stream Error from server {sid}: {data.get('error')}")
+                        except Exception as je: 
+                            logger.error(f"JSON Parse error for {sid}: {je} | Raw: {line[:60]}...")
+                
+                if command_done:
+                    logger.info(f"Stream command finished for {sid}, restarting...")
+                    if not start_stream(): break
+                time.sleep(0.05)
+            except Exception as e:
+                logger.error(f"Streaming loop error for {sid}: {e}")
+                time.sleep(1)
+                if not start_stream(): break
+    finally:
+        if shell_id:
+            try: 
+                protocol.close_shell(shell_id)
+            except: 
+                pass

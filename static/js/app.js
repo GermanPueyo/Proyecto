@@ -320,19 +320,16 @@ function enterDashboard(ip) {
 }
 
 let _polling = false;
-let _pollTicks = 0;
 
 function startPolling() {
-  if (POLL) clearInterval(POLL);
-  _pollTicks = 0;
-  fetchMetricsOnce();
-  POLL = setInterval(fetchMetricsOnce, 1000);
+  if (POLL) clearTimeout(POLL);
+  _pollLoop();
 }
 
-async function fetchMetricsOnce() {
-  if (!SID || _polling) return;
+async function _pollLoop() {
+  if (!SID) return;
+  if (_polling) { POLL = setTimeout(_pollLoop, 200); return; }
   _polling = true;
-  _pollTicks++;
   try {
     const res = await fetch('/api/metrics?sid=' + SID);
     const d = await res.json();
@@ -347,17 +344,14 @@ async function fetchMetricsOnce() {
     updateKPIs(d);
     updateCharts();
     updateStats(d);
-
-    // Auto-refresh secondary views seamlessly every ~3 seconds if they are visible
-    // (Removed by user request: Disks and DHCP are now refreshed manually via button)
-  } catch (e) {
-    // Silently retry next interval
-  }
+  } catch (e) { /* retry next cycle */ }
   _polling = false;
+  // Fire next poll 500ms after THIS one completes — no pile-up, no wasted time
+  if (SID) POLL = setTimeout(_pollLoop, 500);
 }
 
 function doDisconnect() {
-  if (POLL) clearInterval(POLL);
+  if (POLL) clearTimeout(POLL);
   POLL = null;
   _polling = false;
 
@@ -596,9 +590,9 @@ async function loadDisks(force = false) {
         existing.querySelector('.doughnut-chart').style.background = `conic-gradient(${chartColor} ${dk.used_pct}%, rgba(255,255,255,0.05) 0)`;
         existing.querySelector('.doughnut-inner').textContent = dk.used_pct + '%';
         existing.querySelector('.dk-stats').innerHTML = `
-            <span>Usado: <strong style="color:var(--cream);font-size:0.95rem">${dk.used_gb} GB (${dk.used_pct}%)</strong></span>
-            <span>Libre: <strong style="font-size:0.95rem">${dk.free_gb} GB</strong></span>
-            <span>Total: <strong>${dk.total_gb} GB</strong></span>
+            <span>Usado: <strong style="color:var(--cream);font-size:0.95rem">${Number(dk.used_gb).toFixed(2)} GB (${dk.used_pct}%)</strong></span>
+            <span>Libre: <strong style="font-size:0.95rem">${Number(dk.free_gb).toFixed(2)} GB</strong></span>
+            <span>Total: <strong>${Number(dk.total_gb).toFixed(2)} GB</strong></span>
           `;
       } else {
         html += `

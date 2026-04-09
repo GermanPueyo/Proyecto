@@ -50,7 +50,7 @@ def init_db():
         c.execute("""
             CREATE TABLE IF NOT EXISTS servers (
                 id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                alias        TEXT    NOT NULL,
+                alias        TEXT    NOT NULL UNIQUE,
                 ip           TEXT    NOT NULL UNIQUE,
                 username     TEXT    NOT NULL,
                 password_enc TEXT    NOT NULL
