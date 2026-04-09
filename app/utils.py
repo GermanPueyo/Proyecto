@@ -10,7 +10,7 @@ class PollingFilter(logging.Filter):
     def filter(self, record):
         msg = record.getMessage()
         # Definimos las rutas que generan ruido (polling constante)
-        polling_routes = ["/status", "/api/metrics"]
+        polling_routes = ["/status", "/api/metrics", "/api/servers", "/api/groups"]
         
         # Verificamos si la petición es una de las rutas de polling
         is_polling = any(route in msg for route in polling_routes)

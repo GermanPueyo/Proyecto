@@ -4,10 +4,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flower Node</title>
+  <title>Call Me If You Go Offline</title>
   <meta name="description" content="Panel web de monitorización de servidores Windows Server 2022 vía WinRM">
   <link rel="icon" href="/logo" type="image/svg+xml">
   <link rel="stylesheet" href="/static/css/style.css">
+  <!-- SortableJS para Drag & Drop -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 
 <body>
@@ -18,8 +20,22 @@
   <div id="home-screen">
     <div class="home-header">
       <img src="/logo" alt="Logo" id="home-logo">
-      <h1>Flower Node</h1>
+      <h1>Call Me If You Go Offline</h1>
       <p>Panel de monitorización remota para Windows Server</p>
+    </div>
+
+    <!-- NOC Toolbar -->
+    <div class="home-toolbar">
+      <div class="ht-left">
+        <button class="btn btn-primary" onclick="openAddServerModal()"><span style="margin-right:8px">＋</span> Nuevo Servidor</button>
+        <button class="btn btn-ghost" onclick="openGroupsModal()"><span style="margin-right:8px">📁</span> Gestionar Grupos</button>
+      </div>
+      <div class="ht-right">
+        <div class="search-wrap">
+          <input type="text" id="server-search" placeholder="Filtrar por alias, IP o etiqueta..." oninput="filterServers(this.value)">
+          <span class="search-icon">🔍</span>
+        </div>
+      </div>
     </div>
 
     <div class="servers-grid" id="servers-grid">
@@ -49,12 +65,22 @@
         <input type="text" id="srv-ip" placeholder="192.168.x.x">
       </div>
       <div class="form-group">
+        <label for="srv-group-select">Grupo de Cliente</label>
+        <select id="srv-group-select">
+          <!-- Se llena por JS -->
+        </select>
+      </div>
+      <div class="form-group">
         <label for="srv-user">Usuario</label>
         <input type="text" id="srv-user" placeholder="Administrador">
       </div>
       <div class="form-group">
         <label for="srv-pwd">Contraseña</label>
         <input type="password" id="srv-pwd" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label for="srv-tags">Etiquetas (separadas por comas)</label>
+        <input type="text" id="srv-tags" placeholder="Producción, SQL, Web...">
       </div>
 
       <button class="btn btn-primary" id="btn-save-server" onclick="saveServer()">
@@ -112,9 +138,31 @@
   </div>
 
   <!-- ============================================================
+     MODAL — Gestionar Grupos
+     ============================================================ -->
+  <div class="modal-overlay" id="groups-modal">
+    <div class="modal-box" style="width: 450px;">
+      <button class="modal-close" onclick="closeGroupsModal()">&times;</button>
+      <h2>Gestionar Grupos</h2>
+      <p class="modal-sub">Crea o renombra categorías de servidores</p>
+
+      <div class="gm-add-row">
+        <input type="text" id="new-group-name" placeholder="Nombre del nuevo grupo...">
+        <button class="btn btn-primary" onclick="createNewGroup()">Añadir</button>
+      </div>
+
+      <div id="groups-list-container" style="margin-top:20px; max-height:300px; overflow-y:auto;">
+        <!-- Lista de grupos editables -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
      DASHBOARD POST-LOGIN
      ============================================================ -->
   <div id="dashboard-screen">
+    <!-- Context for Frontend Expert Polling -->
+    <div id="dashboard-context" data-server-id="" style="display:none"></div>
     <div class="dash-layout">
 
       <!-- Sidebar -->
@@ -123,7 +171,7 @@
           onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
           <img src="/logo" alt="Logo">
           <div>
-            <h2>Flower Node</h2>
+            <h2>Call Me If You Go Offline</h2>
             <small id="dash-ip">—</small>
           </div>
         </div>

@@ -5,7 +5,7 @@
 let SID = null;
 let SPECS = {};
 let POLL = null;
-const MAX_PTS = 60;
+const MAX_PTS = 100; // Increased points for smoother look
 
 const history = {
   cpu: [], ram: [], disk: [],
@@ -14,96 +14,344 @@ const history = {
 
 let chartCpuRam = null;
 let chartNet = null;
-
-// Toggle state for KPI filters
-const visible = { cpu: true, ram: true, disk: true, net: true };
+let visible = { cpu: true, ram: true, disk: true, net: true };
 
 /* =============================================================
-   HOME — Dynamic Server Cards
+   HOME — Dynamic Server Cards & Drag & Drop
    ============================================================= */
 document.addEventListener('DOMContentLoaded', () => loadServerCards());
+
+// Persist open groups in localStorage
+const savedGroups = localStorage.getItem('openedGroups');
+let OPEN_GROUPS = new Set(savedGroups ? JSON.parse(savedGroups) : ['General']);
+
+function saveGroupState() {
+  localStorage.setItem('openedGroups', JSON.stringify([...OPEN_GROUPS]));
+}
+
+function escapeHTML(str) {
+  if (!str) return "";
+  return str.replace(/[&<>"']/g, function(m) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m];
+  });
+}
 
 async function loadServerCards() {
   const grid = document.getElementById('servers-grid');
   try {
     const res = await fetch('/api/servers');
     const data = await res.json();
-    const servers = data.ok ? data.servers : [];
+    if (!data.ok) return;
 
-    let html = servers.map(s => `
-      <div class="server-card" onclick="connectToServer(${s.id}, '${s.ip}')">
-        <button class="sc-action sc-edit" title="Editar" onclick="event.stopPropagation(); openEditServerModal(${s.id}, '${s.alias.replace(/'/g, "\\'")}', '${s.ip}', '${s.username.replace(/'/g, "\\'")}')">
-          ✏️
-        </button>
-        <button class="sc-action sc-delete" title="Eliminar" onclick="event.stopPropagation(); deleteServerCard(${s.id}, '${s.alias.replace(/'/g, "\\'")}')">
-          🗑️
-        </button>
-        <div class="sc-icon">🖥️</div>
-        <h3>${s.alias}</h3>
-        <p class="sc-ip">${s.ip}</p>
-        <div class="sc-status" id="srv-status-${s.id}">
-          <span class="dot" style="background:#555; animation:none"></span> <span style="color:var(--muted)">Comprobando...</span>
+    let html = '';
+    const groups = data.groups || [];
+
+    if (groups.length === 0) {
+      grid.innerHTML = `
+        <div class="server-group empty">
+          <div class="group-header">
+            <div class="group-title">Sin grupos configurados</div>
+          </div>
+          <div class="group-content" style="opacity:1; min-height:100px; display:flex; align-items:center; justify-content:center;">
+             <p style="color:var(--muted)">Haz clic en "Gestionar Grupos" para empezar</p>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+      return;
+    }
 
-    html += `
-      <div class="server-card add-card" onclick="openAddServerModal()">
-        <div class="add-card-icon">＋</div>
-        <h3>Agregar Servidor</h3>
-        <p class="sc-ip" style="color:var(--muted)">Nuevo servidor WinRM</p>
-      </div>
-    `;
+    groups.forEach(group => {
+      const gName = escapeHTML(group.name);
+      const gid = group.id;
+      const servers = group.servers || [];
+      const isClosed = !OPEN_GROUPS.has(group.name);
+      const isEmpty = servers.length === 0;
+      
+      html += `
+        <div class="server-group ${isClosed ? 'closed' : ''} ${isEmpty ? 'is-ghost' : ''}" 
+             id="group-container-${gid}" data-gid="${gid}" data-group-name="${gName}">
+          <div class="group-header" onclick="toggleGroup(this.parentElement)">
+            <div class="group-title">
+              <span class="group-chevron">▼</span>
+              ${gName} <span class="count">${servers.length}</span>
+            </div>
+          </div>
+          <div class="group-content" data-gid="${gid}">
+            ${servers.map(s => {
+              const m = s.metrics || {};
+              const isOnline = m.status === 'online';
+              const cpu = m.cpu || 0;
+              const disk = m.disk || 0;
+              const isAlert = cpu >= 80 || disk >= 80;
+              const alias = escapeHTML(s.alias);
+              const tagsRaw = s.tags ? s.tags.split(',').map(t => t.trim()).filter(t => t) : [];
+              
+              return `
+                <div class="mini-card ${isAlert ? 'status-alert' : ''} ${!isOnline ? 'status-offline' : ''}" 
+                     data-sid="${s.id}"
+                     onclick="connectToServer(${s.id}, '${s.ip}')">
+                  <div class="mc-actions">
+                    <button class="mc-btn" title="Editar" onclick="event.stopPropagation(); openEditServerModal(${s.id}, '${alias.replace(/'/g, "\\'")}', '${s.ip}', '${escapeHTML(s.username).replace(/'/g, "\\'")}', ${gid}, '${escapeHTML(s.tags || '').replace(/'/g, "\\'")}')">✏️</button>
+                    <button class="mc-btn" title="Eliminar" onclick="event.stopPropagation(); deleteServerCard(${s.id}, '${alias.replace(/'/g, "\\'")}')">🗑️</button>
+                  </div>
+                  <div class="mc-info">
+                    <h3>${alias}</h3>
+                    <div class="mc-ip">${s.ip}</div>
+                    <div class="server-tags">
+                      ${tagsRaw.map(t => `<span class="tag-badge">${escapeHTML(t)}</span>`).join('')}
+                    </div>
+                  </div>
+                  ${isOnline ? `
+                  <div class="mc-bars">
+                    <div class="mc-bar-item">
+                      <span>CPU</span>
+                      <div class="mc-bar-wrap">
+                        <div class="mc-bar-fill" style="width:${cpu}%; background:${colorForPct(cpu)}"></div>
+                      </div>
+                      <span style="width:25px; text-align:right">${cpu}%</span>
+                    </div>
+                    <div class="mc-bar-item">
+                      <span>DSK</span>
+                      <div class="mc-bar-wrap">
+                        <div class="mc-bar-fill" style="width:${disk}%; background:${colorForPct(disk)}"></div>
+                      </div>
+                      <span style="font-size:0.6rem; min-width:60px; text-align:right">
+                        ${m.used_gb != null ? m.used_gb + '/' + m.total_gb + ' GB' : disk + '%'}
+                      </span>
+                    </div>
+                  </div>
+                  ` : `
+                  <div style="margin-top:10px; font-size:0.7rem; color:var(--danger); font-weight:600">
+                    DESCONECTADO
+                  </div>
+                  `}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    });
+
     grid.innerHTML = html;
-
-    // Fetch status initially
-    servers.forEach(checkServerStatus);
-
-    // Keep checking every 10 seconds if home screen is visible
-    if (window._statusInterval) clearInterval(window._statusInterval);
-    window._statusInterval = setInterval(() => {
-      const home = document.getElementById('home-screen');
-      if (home && home.style.display !== 'none') {
-        servers.forEach(checkServerStatus);
-      }
-    }, 10000);
+    initSortable();
 
   } catch (e) {
-    grid.innerHTML = `
-      <div class="server-card add-card" onclick="openAddServerModal()">
-        <div class="add-card-icon">＋</div>
-        <h3>Agregar Servidor</h3>
-        <p class="sc-ip" style="color:var(--muted)">Nuevo servidor WinRM</p>
-      </div>
-    `;
+    console.error("Error loading NOC dashboard:", e);
   }
 }
 
-async function checkServerStatus(s) {
-  try {
-    const sr = await fetch('/api/servers/' + s.id + '/status');
-    const sdata = await sr.json();
-    const statDiv = document.getElementById('srv-status-' + s.id);
-    if (!statDiv) return;
-
-    if (sdata.ok && sdata.status === 'online') {
-      statDiv.innerHTML = '<span class="dot" style="background:var(--ok)"></span> <span style="color:var(--ok)">Disponible para conexión</span>';
-    } else {
-      statDiv.innerHTML = '<span class="dot" style="background:var(--danger); animation:none"></span> <span style="color:var(--danger)">No disponible</span>';
-    }
-  } catch (e) {
-    const statDiv = document.getElementById('srv-status-' + s.id);
-    if (statDiv) statDiv.innerHTML = '<span class="dot" style="background:var(--danger); animation:none"></span> <span style="color:var(--danger)">No disponible</span>';
+// Global Refresh Interval (Syncs every 10s)
+if (window._statusInterval) clearInterval(window._statusInterval);
+window._statusInterval = setInterval(() => {
+  const home = document.getElementById('home-screen');
+  if (home && home.style.display !== 'none' && !window._isDragging) {
+    loadServerCards(); 
   }
+}, 10000);
+
+function initSortable() {
+  const grid = document.getElementById('servers-grid');
+  
+  // 1. Sortable for Groups
+  new Sortable(grid, {
+    animation: 150,
+    handle: '.group-header',
+    ghostClass: 'sortable-ghost',
+    onStart: () => { window._isDragging = true; },
+    onEnd: async (evt) => {
+      window._isDragging = false;
+      const order = [...grid.children].map((el, i) => ({
+        id: parseInt(el.dataset.gid),
+        position: i
+      }));
+      
+      try {
+        await fetch('/api/groups/reorder', {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ order })
+        });
+      } catch (e) {
+        console.error("Failed to reorder groups:", e);
+      }
+    }
+  });
+
+  // 2. Sortable for Servers within groups
+  document.querySelectorAll('.group-content').forEach(el => {
+    new Sortable(el, {
+      group: 'shared-servers', // Allow moving across groups
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      dragClass: 'sortable-drag',
+      onStart: () => { window._isDragging = true; },
+      onEnd: async (evt) => {
+        window._isDragging = false;
+        const sid = evt.item.dataset.sid;
+        const newGid = evt.to.dataset.gid;
+        const newPos = evt.newIndex;
+        
+        // Optimistic UI Update: Instant count and ghost toggle
+        updateUIStats();
+
+        try {
+          await fetch('/api/servers/move', {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ server_id: parseInt(sid), group_id: parseInt(newGid), position: newPos })
+          });
+        } catch (e) {
+          console.error("Failed to move server:", e);
+          loadServerCards(); // Revert on failure
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Updates group counts and ghost states instantly based on DOM state
+ */
+function updateUIStats() {
+  document.querySelectorAll('.server-group').forEach(group => {
+    const content = group.querySelector('.group-content');
+    const countSpan = group.querySelector('.group-count');
+    if (!content || !countSpan) return;
+
+    const currentCount = content.querySelectorAll('.mini-card').length;
+    countSpan.textContent = currentCount;
+
+    if (currentCount === 0) {
+      group.classList.add('is-ghost');
+    } else {
+      group.classList.remove('is-ghost');
+    }
+  });
+}
+
+function toggleGroup(el) {
+  const gName = el.getAttribute('data-group-name');
+  if (el.classList.contains('closed')) {
+    el.classList.remove('closed');
+    OPEN_GROUPS.add(gName);
+  } else {
+    el.classList.add('closed');
+    OPEN_GROUPS.delete(gName);
+  }
+  saveGroupState();
+}
+
+/* =============================================================
+   GROUP MANAGEMENT MODAL
+   ============================================================= */
+async function openGroupsModal() {
+  document.getElementById('groups-modal').classList.add('active');
+  loadGroupsList();
+}
+function closeGroupsModal() {
+  document.getElementById('groups-modal').classList.remove('active');
+  loadServerCards();
+}
+
+async function loadGroupsList() {
+  const container = document.getElementById('groups-list-container');
+  const res = await fetch('/api/groups');
+  const data = await res.json();
+  if (!data.ok) return;
+
+  container.innerHTML = data.groups.map(g => `
+    <div class="group-mgmt-item">
+      <div class="gm-drag-handle">≡</div>
+      <input type="text" value="${g.name}" class="gm-input" 
+             onchange="renameGroup(${g.id}, this.value)"
+             onkeydown="if(event.key==='Enter') { this.blur(); renameGroup(${g.id}, this.value); }">
+      <button class="gm-delete-btn" title="Eliminar Grupo" onclick="deleteGroup(${g.id})">🗑️</button>
+    </div>
+  `).join('');
+}
+
+async function createNewGroup() {
+  const name = document.getElementById('new-group-name').value;
+  if (!name) return;
+  await fetch('/api/groups', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name })
+  });
+  document.getElementById('new-group-name').value = '';
+  loadGroupsList();
+}
+
+async function renameGroup(gid, name) {
+  await fetch(`/api/groups/${gid}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name })
+  });
+}
+
+async function deleteGroup(gid) {
+  if (!confirm('¿Borrar grupo? Los servidores se moverán a "General".')) return;
+  await fetch(`/api/groups/${gid}`, { method: 'DELETE' });
+  loadGroupsList();
+}
+
+function filterServers(val) {
+  const search = val.toLowerCase().trim();
+  const grid = document.getElementById('servers-grid');
+  const groups = document.querySelectorAll('.server-group');
+
+  if (search === "") {
+    grid.classList.remove('is-searching');
+    groups.forEach(g => {
+      g.style.display = 'block';
+      g.querySelectorAll('.mini-card').forEach(c => c.style.display = 'flex');
+    });
+    return;
+  }
+
+  grid.classList.add('is-searching');
+  groups.forEach(group => {
+    const cards = group.querySelectorAll('.mini-card');
+    let hasVisible = false;
+
+    cards.forEach(card => {
+      const text = card.innerText.toLowerCase();
+      const match = text.includes(search);
+      card.style.display = match ? 'flex' : 'none';
+      if (match) hasVisible = true;
+    });
+
+    // Hide/Show the group container
+    group.style.display = hasVisible ? 'block' : 'none';
+  });
 }
 
 /* =============================================================
    SERVER MODAL — Add / Edit
    ============================================================= */
-function openAddServerModal() {
+async function fetchGroupsIntoSelect(selectedId = null) {
+  const select = document.getElementById('srv-group-select');
+  if (!select) return;
+  try {
+    const res = await fetch('/api/groups');
+    const data = await res.json();
+    if (data.ok) {
+      select.innerHTML = data.groups.map(g => `
+        <option value="${g.id}" ${selectedId == g.id ? 'selected' : ''}>${g.name}</option>
+      `).join('');
+    }
+  } catch (e) {
+    console.error("Error fetching groups for select:", e);
+  }
+}
+
+async function openAddServerModal(defaultGid = null) {
   document.getElementById('srv-edit-id').value = '';
   document.getElementById('srv-alias').value = '';
   document.getElementById('srv-ip').value = '';
+  document.getElementById('srv-tags').value = '';
   document.getElementById('srv-user').value = '';
   document.getElementById('srv-pwd').value = '';
   document.getElementById('srv-pwd').placeholder = '••••••••';
@@ -111,21 +359,28 @@ function openAddServerModal() {
   document.getElementById('server-modal-sub').textContent = 'Introduce los datos de conexión WinRM';
   document.getElementById('btn-save-text').textContent = 'Guardar Servidor';
   document.getElementById('server-modal-error').classList.remove('show');
+  
+  await fetchGroupsIntoSelect(defaultGid);
+  
   document.getElementById('server-modal').classList.add('active');
   document.getElementById('srv-alias').focus();
 }
 
-function openEditServerModal(id, alias, ip, user) {
+async function openEditServerModal(id, alias, ip, user, gid, tags) {
   document.getElementById('srv-edit-id').value = id;
   document.getElementById('srv-alias').value = alias;
   document.getElementById('srv-ip').value = ip;
   document.getElementById('srv-user').value = user;
+  document.getElementById('srv-tags').value = tags || '';
   document.getElementById('srv-pwd').value = '';
   document.getElementById('srv-pwd').placeholder = 'Dejar vacío para no cambiar';
   document.getElementById('server-modal-title').textContent = 'Editar Servidor';
   document.getElementById('server-modal-sub').textContent = 'Modifica los datos de "' + alias + '"';
   document.getElementById('btn-save-text').textContent = 'Guardar Cambios';
   document.getElementById('server-modal-error').classList.remove('show');
+  
+  await fetchGroupsIntoSelect(gid);
+  
   document.getElementById('server-modal').classList.add('active');
   document.getElementById('srv-alias').focus();
 }
@@ -139,6 +394,8 @@ async function saveServer() {
   const editId = document.getElementById('srv-edit-id').value;
   const alias = document.getElementById('srv-alias').value.trim();
   const ip = document.getElementById('srv-ip').value.trim();
+  const groupId = document.getElementById('srv-group-select').value;
+  const tags = document.getElementById('srv-tags').value.trim();
   const user = document.getElementById('srv-user').value.trim();
   const pwd = document.getElementById('srv-pwd').value;
   const errBox = document.getElementById('server-modal-error');
@@ -154,7 +411,7 @@ async function saveServer() {
 
   const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
   if (!ipRegex.test(ip)) {
-    errBox.textContent = 'Formato de IP incorrecto. Debe ser una dirección IPv4 válida (ej. 192.168.1.10)';
+    errBox.textContent = 'Formato de IP incorrecto. Debe ser una dirección IPv4 válida';
     errBox.classList.add('show');
     return;
   }
@@ -168,12 +425,14 @@ async function saveServer() {
   btn.disabled = true;
   spinner.style.display = 'inline-block';
   btnTxt.textContent = 'Guardando…';
-  errBox.classList.remove('show');
 
   try {
     let url = '/api/servers';
     let method = 'POST';
-    let body = { alias, ip, user, password: pwd };
+    let body = { 
+      alias, ip, username: user, password: pwd, 
+      group_id: parseInt(groupId), tags: tags 
+    };
 
     if (editId) {
       url = '/api/servers/' + editId;
@@ -276,6 +535,13 @@ async function connectToServer(serverId, ip) {
 
     SID = data.sid;
     SPECS = data.specs;
+    
+    // Set Dashboard Context for polling
+    const contextEl = document.getElementById('dashboard-context');
+    if (contextEl) contextEl.setAttribute('data-server-id', serverId);
+    
+    console.log("🚀 Connection Success. Server ID Context set to:", serverId);
+    
     modal.classList.remove('active');
     enterDashboard(ip);
   } catch (e) {
@@ -305,15 +571,16 @@ function enterDashboard(ip) {
   // Switch view first so the canvas containers are visible
   switchView('monitor', document.querySelector('[data-view="monitor"]'));
 
+  // PROACTIVE LOADING: Load all sub-modules immediately on entry
+  renderSpecs();
+  loadDisks();   // Now automatic
+  loadDhcp();    // Now automatic
+
   // Defer chart init to next frame so the browser has laid out the DOM
-  // and canvas elements have real dimensions for Chart.js
   requestAnimationFrame(() => {
     setTimeout(() => {
       initCharts();
       setupKpiToggles();
-      renderSpecs();
-      loadDisks();
-      loadDhcp(); // Pre-load DHCP in the background seamlessly
       startPolling();
     }, 100);
   });
@@ -321,39 +588,59 @@ function enterDashboard(ip) {
 
 let _polling = false;
 
+let _pollActive = false; 
+
 function startPolling() {
-  if (POLL) clearTimeout(POLL);
-  _pollLoop();
+  console.log("🚀 [POLL] Iniciando motor de monitorización...");
+  if (_pollActive) return; 
+  _pollActive = true;
+  _runHeartbeat();
 }
 
-async function _pollLoop() {
-  if (!SID) return;
-  if (_polling) { POLL = setTimeout(_pollLoop, 200); return; }
-  _polling = true;
+async function _runHeartbeat() {
+  if (!SID || !_pollActive) {
+    _pollActive = false;
+    return;
+  }
+
+  const contextEl = document.getElementById('dashboard-context');
+  const serverId = contextEl ? contextEl.getAttribute('data-server-id') : 'unknown';
+
   try {
-    const res = await fetch('/api/metrics?sid=' + SID);
+    const res = await fetch(`/api/metrics?sid=${SID}&server_id=${serverId}`);
+    if (!res.ok) throw new Error();
     const d = await res.json();
-    if (!d.ok) { _polling = false; return; }
+    
+    if (d && d.ok && d.status !== 'loading') { 
+      if (d.specs && document.getElementById('specs-container').innerHTML === '') {
+        IP_CACHE = d.specs; 
+        renderSpecs();
+      }
 
-    pushHistory('cpu', d.cpu);
-    pushHistory('ram', d.ram);
-    pushHistory('disk', d.disk);
-    pushHistory('net_up', d.sent_mbps);
-    pushHistory('net_dn', d.recv_mbps);
+      pushHistory('cpu', d.cpu || 0);
+      pushHistory('ram', d.ram || 0);
+      pushHistory('disk', d.disk || 0);
+      pushHistory('net_up', (d.sent_mbps !== undefined) ? d.sent_mbps : 0);
+      pushHistory('net_dn', (d.recv_mbps !== undefined) ? d.recv_mbps : 0);
 
-    updateKPIs(d);
-    updateCharts();
-    updateStats(d);
-  } catch (e) { /* retry next cycle */ }
-  _polling = false;
-  // Fire next poll 500ms after THIS one completes — no pile-up, no wasted time
-  if (SID) POLL = setTimeout(_pollLoop, 500);
+      updateKPIs(d);
+      updateCharts();
+      updateStats(d);
+    }
+  } catch (e) { 
+    // Silently handle transient errors for a smoother experience
+  } finally {
+    if (SID && _pollActive) {
+      POLL = setTimeout(_runHeartbeat, 900);
+    }
+  }
 }
 
 function doDisconnect() {
+  console.log("🧹 [SESSION] Disconnecting & Purging state...");
+  _pollActive = false; 
   if (POLL) clearTimeout(POLL);
   POLL = null;
-  _polling = false;
 
   fetch('/api/disconnect', {
     method: 'POST',
@@ -362,14 +649,15 @@ function doDisconnect() {
   }).catch(() => { });
 
   SID = null;
+  SPECS = {};
+  IP_CACHE = {};
+
   document.getElementById('dashboard-screen').style.display = 'none';
   document.getElementById('home-screen').style.display = '';
 
   if (chartCpuRam) { chartCpuRam.destroy(); chartCpuRam = null; }
   if (chartNet) { chartNet.destroy(); chartNet = null; }
-  IP_CACHE = {};
 
-  // Refresh server cards on return to Home
   loadServerCards();
 }
 
@@ -498,22 +786,31 @@ function colorForPct(pct) {
 }
 
 function updateKPIs(d) {
-  setKPI('cpu', d.cpu + '%', d.cpu);
-  setKPI('ram', d.ram + '%', d.ram);
-  setKPI('disk', d.disk + '%', d.disk);
+  const cpu = Math.round(d.cpu || 0);
+  const ram = Math.round(d.ram || 0);
+  const disk = (d.disk !== undefined) ? Number(d.disk).toFixed(1) : 0;
 
-  const netTotal = (d.recv_mbps + d.sent_mbps).toFixed(1);
+  setKPI('cpu', cpu + '%', cpu);
+  setKPI('ram', ram + '%', ram);
+  setKPI('disk', disk + '%', disk);
+
+  const netTotal = (Number(d.recv_mbps || 0) + Number(d.sent_mbps || 0)).toFixed(1);
   document.getElementById('kpi-net-val').textContent = netTotal + ' Mbps';
   document.getElementById('kpi-net-bar').style.width = Math.min(100, netTotal * 10) + '%';
 
-  document.getElementById('nav-cpu-pct').textContent = d.cpu + '%';
+  if (document.getElementById('nav-cpu-pct')) {
+    document.getElementById('nav-cpu-pct').textContent = cpu + '%';
+  }
 }
 
 function setKPI(id, txt, pct) {
-  document.getElementById('kpi-' + id + '-val').textContent = txt;
+  const valEl = document.getElementById('kpi-' + id + '-val');
+  if (valEl) valEl.textContent = txt;
   const bar = document.getElementById('kpi-' + id + '-bar');
-  bar.style.width = pct + '%';
-  bar.style.background = colorForPct(pct);
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.style.background = colorForPct(parseFloat(pct));
+  }
 }
 
 function updateCharts() {
@@ -787,8 +1084,28 @@ async function openDhcpModal(scopeId, scopeName) {
 }
 
 /* =============================================================
-   SPECS VIEW
+   SPECS VIEW — Dynamic Hardware Details
    ============================================================= */
+function formatUptime(raw) {
+  if (!raw || raw.length < 14) return 'Desconocido';
+  try {
+    const y = parseInt(raw.substring(0,4)), m = parseInt(raw.substring(4,6))-1, d = parseInt(raw.substring(6,8));
+    const hh = parseInt(raw.substring(8,10)), mm = parseInt(raw.substring(10,12)), ss = parseInt(raw.substring(12,14));
+    const boot = new Date(y, m, d, hh, mm, ss);
+    const diff = (new Date() - boot) / 1000;
+    
+    const days = Math.floor(diff / 86400);
+    const hours = Math.floor((diff % 86400) / 3600);
+    const mins = Math.floor((diff % 3600) / 60);
+    
+    let res = [];
+    if (days > 0) res.push(`${days}d`);
+    if (hours > 0) res.push(`${hours}h`);
+    res.push(`${mins}m`);
+    return res.join(' ');
+  } catch(e) { return 'Calculando...'; }
+}
+
 function renderSpecs() {
   const c = document.getElementById('specs-container');
   const s = SPECS;
@@ -827,11 +1144,11 @@ function renderSpecs() {
   if (s.net_adapters && s.net_adapters.length > 0) {
     netAdaptersHtml = s.net_adapters.map(n => `
           <div style="margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.05);">
-              <div style="font-weight:700; color:var(--cream); font-size:0.9rem; margin-bottom:6px">${n.desc}</div>
-              <div class="spec-row" style="border:none; padding:4px 0"><span class="sr-key" style="font-size:0.8rem">IPv4</span><span class="sr-val" style="font-size:0.8rem">${n.ip}</span></div>
-              <div class="spec-row" style="border:none; padding:4px 0"><span class="sr-key" style="font-size:0.8rem">MAC</span><span class="sr-val" style="font-size:0.8rem">${n.mac}</span></div>
-              <div class="spec-row" style="border:none; padding:4px 0"><span class="sr-key" style="font-size:0.8rem">Gateway</span><span class="sr-val" style="font-size:0.8rem">${n.gw}</span></div>
-              <div class="spec-row" style="border:none; padding:4px 0"><span class="sr-key" style="font-size:0.8rem">DNS</span><span class="sr-val" style="font-size:0.8rem">${n.dns}</span></div>
+              <div style="font-weight:700; color:var(--cream); font-size:0.9rem; margin-bottom:6px">${n.Description || 'Adaptador'}</div>
+              <div class="spec-row" style="border:none; padding:4px 0"><span class="sr-key" style="font-size:0.8rem">IPv4</span><span class="sr-val" style="font-size:0.8rem">${n.IP || '—'}</span></div>
+              <div class="spec-row" style="border:none; padding:4px 0"><span class="sr-key" style="font-size:0.8rem">MAC</span><span class="sr-val" style="font-size:0.8rem">${n.MACAddress || '—'}</span></div>
+              <div class="spec-row" style="border:none; padding:4px 0"><span class="sr-key" style="font-size:0.8rem">Gateway</span><span class="sr-val" style="font-size:0.8rem">${n.GW || '—'}</span></div>
+              <div class="spec-row" style="border:none; padding:4px 0"><span class="sr-key" style="font-size:0.8rem">DNS</span><span class="sr-val" style="font-size:0.8rem">${n.DNS || '—'}</span></div>
           </div>
       `).join('');
   } else {
@@ -858,30 +1175,33 @@ function renderSpecs() {
     </div>
   `;
 
+  const uptime = formatUptime(s.raw_uptime);
+
   c.innerHTML = cpuHtml + memHtml + `
     <div class="spec-card">
       <div class="sp-header">
         <div class="sp-icon" style="background:rgba(108,92,231,.15)">🖥️</div>
         <div>
           <div class="sp-title">Sistema Operativo</div>
-          <div class="sp-sub">${s.os_version || '—'}</div>
+          <div class="sp-sub">${s.os_version || 'Detectado'}</div>
         </div>
       </div>
-      <div class="spec-row"><span class="sr-key">Uptime</span><span class="sr-val">${s.uptime || '—'}</span></div>
+      <div class="spec-row"><span class="sr-key">Uptime</span><span class="sr-val">${uptime}</span></div>
       <div class="spec-row"><span class="sr-key">Hostname</span><span class="sr-val">${s.hostname || '—'}</span></div>
-      <div class="spec-row"><span class="sr-key">${s.domain_role || 'Red'}</span><span class="sr-val">${s.domain || '—'}</span></div>
-      <div class="spec-row"><span class="sr-key">Versión del SO</span><span class="sr-val">${s.os_version || '—'}</span></div>
+      <div class="spec-row"><span class="sr-key">Red</span><span class="sr-val">${s.domain || '—'}</span></div>
+      <div class="spec-row"><span class="sr-key">Versión del SO</span><span class="sr-val">Detectado</span></div>
     </div>
-
     <div class="spec-card">
       <div class="sp-header">
-        <div class="sp-icon" style="background:rgba(52,211,153,.15)">🛜</div>
+        <div class="sp-icon" style="background:rgba(59,130,246,.15)">🌐</div>
         <div>
           <div class="sp-title">Red y Conectividad</div>
           <div class="sp-sub">Interfaces IPv4 activas</div>
         </div>
       </div>
-      ${netAdaptersHtml}
+      <div style="margin-top:15px">
+        ${netAdaptersHtml}
+      </div>
     </div>
   `;
 }

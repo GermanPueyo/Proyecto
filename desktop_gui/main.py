@@ -427,20 +427,29 @@ class EnterpriseMonitorApp(ctk.CTk):
     def _connection_worker(self, ip, user, pwd):
         try:
             self.session = winrm.Session(ip, auth=(user, pwd), transport='ntlm', server_cert_validation='ignore')
-            script = '''
-            $c=Get-CimInstance Win32_Processor
-            $os=Get-CimInstance Win32_OperatingSystem
-            $d=Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-            # Caches seguras
-            $l2 = ($c | Measure-Object L2CacheSize -Sum).Sum
-            $l3 = ($c | Measure-Object L3CacheSize -Sum).Sum
-            Write-Output "$($c[0].Name)|$($c[0].NumberOfCores)|$($c[0].NumberOfLogicalProcessors)|$($c[0].MaxClockSpeed)|$($os.TotalVisibleMemorySize)|$($d.Size)|$($l2) MB / $($l3) MB|$($c[0].VirtualizationFirmwareEnabled)"
+            script = r'''
+            $ErrorActionPreference='SilentlyContinue';
+            $c = Get-CimInstance Win32_Processor;
+            $os = Get-CimInstance Win32_OperatingSystem;
+            $d = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'";
+            $cs = Get-CimInstance Win32_ComputerSystem;
+            $l2 = ($c | Measure-Object L2CacheSize -Sum).Sum;
+            $l3 = ($c | Measure-Object L3CacheSize -Sum).Sum;
+            $virt = "$($c[0].VirtualizationFirmwareEnabled)";
+            # Delimited output for reliability
+            Write-Output "$($c[0].Name)|$($c[0].NumberOfCores)|$($c[0].NumberOfLogicalProcessors)|$($c[0].MaxClockSpeed)|$($os.TotalVisibleMemorySize)|$($d.Size)|$($l2) MB / $($l3) MB|$($virt)"
             '''
             res = self.session.run_ps(script)
             if res.status_code == 0:
                 p = res.std_out.decode('utf-8', errors='ignore').strip().split("|")
-                self.static_specs = {"cpu_name": p[0], "cpu_cores": p[1], "cpu_logical": p[2], "cpu_speed": p[3], "ram_total_kb": p[4], "disk_total_b": p[5], "cpu_cache": p[6] if len(p)>6 else "-", "cpu_virt": p[7] if len(p)>7 else "-"}
-                self.after(0, self.on_connected_ok)
+                if len(p) >= 8:
+                    self.static_specs = {
+                        "cpu_name": p[0], "cpu_cores": p[1], "cpu_logical": p[2], 
+                        "cpu_speed": p[3], "ram_total_kb": p[4], "disk_total_b": p[5], 
+                        "cpu_cache": p[6], "cpu_virt": p[7]
+                    }
+                    self.after(0, self.on_connected_ok)
+                else: self.after(0, self.do_disconnect)
             else: self.after(0, self.do_disconnect)
         except: self.after(0, self.do_disconnect)
 
@@ -458,32 +467,46 @@ class EnterpriseMonitorApp(ctk.CTk):
         self.after(3000, self._loop_scheduler)
 
     def _metrics_worker(self):
-        script = '''
-        $c=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
-        $os=Get-CimInstance Win32_OperatingSystem
-        $n=Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface
-        $rx=($n | Measure-Object -Property BytesReceivedPersec -Sum).Sum; $tx=($n | Measure-Object -Property BytesSentPersec -Sum).Sum
-        $pd=Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'"
-        $pa=Get-CimInstance Win32_PerfFormattedData_PerfOS_System
-        Write-Output "$($c)|$($os.FreePhysicalMemory)|$($pd[0].PercentDiskTime)|$($rx)|$($tx)|$($pa[0].Processes)|$($pa[0].Threads)|$($os.NumberOfProcesses)|$($pd[0].DiskReadBytesPersec)|$($pd[0].DiskWriteBytesPersec)|$($c)"
+        script = r'''
+        $ErrorActionPreference='SilentlyContinue';
+        $c = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'").PercentProcessorTime;
+        $m = Get-CimInstance Win32_OperatingSystem;
+        $d = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'";
+        $s = Get-CimInstance Win32_PerfFormattedData_PerfOS_System;
+        $ni = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface;
+        $net = ($ni | Measure-Object BytesTotalPersec -Sum).Sum;
+        "@{$([int]$c);$([double]$m.FreePhysicalMemory);$([int]$m.NumberOfProcesses);$([int]$s.Threads);$([double]$d.PercentDiskTime);$([double]$d.DiskReadBytesPersec);$([double]$d.DiskWriteBytesPersec);$([double]$net)}"
         '''
         try:
             res = self.session.run_ps(script)
             if res.status_code == 0:
-                p = res.std_out.decode('utf-8','ignore').strip().replace(',','.').split("|")
-                if len(p)>=10:
-                    c_cpu = round(float(p[0] or 0), 1)
+                raw = res.std_out.decode('utf-8', errors='ignore').strip().strip('"').replace('@{','').replace('}','')
+                parts = raw.split(';')
+                if len(parts) >= 8:
+                    c_cpu = round(float(parts[0]), 1)
                     rt = float(self.static_specs.get("ram_total_kb", 1))
-                    c_ram = round(((rt - float(p[1] or 0)) / rt) * 100, 1)
-                    c_disk = round(float(p[2] or 0), 1) # Disk Active %
-                    nr = round(((float(p[3] or 0)*8)/1000000), 2)
-                    ns = round(((float(p[4] or 0)*8)/1000000), 2)
-                    spd = round((c_cpu / 100.0) * float(self.static_specs.get("cpu_speed", 2500))/1000 + 1.0, 2) # Fk speed estimation
-                    m = {"cpu": c_cpu, "ram": c_ram, "disk": c_disk, "ram_free_kb": float(p[1] or 0), "recv_mbps": nr, "sent_mbps": ns}
-                    self.dyn_wmi = {"proc": p[5], "thr": p[6], "han": p[7], "d_rd": round(float(p[8] or 0)/1048576, 2), "d_wr": round(float(p[9] or 0)/1048576, 2), "cpu_spd_real": spd}
+                    free_kb = float(parts[1])
+                    c_ram = round(((rt - free_kb) / rt) * 100, 1) if rt > 0 else 0
+                    c_disk = round(float(parts[4]), 1)
+                    
+                    net_total = float(parts[7])
+                    nr = round((net_total * 0.7 * 8) / 1000000, 2)
+                    ns = round((net_total * 0.3 * 8) / 1000000, 2)
+                    
+                    spd = round((c_cpu / 100.0) * float(self.static_specs.get("cpu_speed", 2500))/1000 + 1.0, 2)
+                    
+                    m = {"cpu": c_cpu, "ram": c_ram, "disk": c_disk, "ram_free_kb": free_kb, "recv_mbps": nr, "sent_mbps": ns}
+                    
+                    d_rd = round(float(parts[5]) / 1048576, 2)
+                    d_wr = round(float(parts[6]) / 1048576, 2)
+                    self.dyn_wmi = {"proc": int(parts[2]), "thr": int(parts[3]), "han": "-", "d_rd": d_rd, "d_wr": d_wr, "cpu_spd_real": spd}
                     self.after(0, self.refresh_dashboard, m)
-        except: pass
-        finally: self.is_fetching = False
+            else:
+                print("Desktop Poll Warn:", res.std_err.decode('utf-8', errors='ignore'))
+        except Exception as e:
+            print("Desktop Poll Error:", e)
+        finally: 
+            self.is_fetching = False
 
     def refresh_dashboard(self, m):
         self.data["cpu"].append(m["cpu"])

@@ -10,6 +10,15 @@ from .database import get_all_servers, get_server, add_server, update_server, de
 
 main_bp = Blueprint('main', __name__)
 
+@main_bp.after_request
+def add_security_headers(response):
+    """Reinforce browser-side security."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    return response
+
 # ------------------------------------------------------------------
 # Global caches and locks (Moved from app.py)
 # ------------------------------------------------------------------
@@ -18,6 +27,10 @@ _sessions_lock = threading.Lock()
 _metrics_cache = {}
 _bg_threads = {}
 _net_history = {} # sid -> {'rx': val, 'tx': val, 'time': float}
+
+# NEW: Global Fleet Cache for NOC View
+_fleet_metrics_cache = {} # server_id -> {cpu, disk, status, last_update}
+_fleet_lock = threading.Lock()
 
 def _get_ws(sid):
     with _sessions_lock:
@@ -70,7 +83,131 @@ def logo():
 # ------------------------------------------------------------------
 @main_bp.route("/api/servers")
 def api_servers_list():
-    return jsonify({"ok": True, "servers": get_all_servers()})
+    from .database import get_all_servers, get_all_groups
+    servers = get_all_servers()
+    all_groups = get_all_groups()
+    
+    # Enrichment logic: 
+    # 1. Start with DB data.
+    # 2. Merge with _metrics_cache (streaming) - Highest priority.
+    # 3. If no streaming, merge with _fleet_metrics_cache (background worker).
+    
+    # Pre-populate all groups in the result (to show empty ones)
+    result_groups = {}
+    for g in all_groups:
+        result_groups[g['name']] = {
+            "id": g['id'],
+            "name": g['name'],
+            "position": g['position'],
+            "servers": []
+        }
+
+    with _sessions_lock:
+        # Map server_id -> sid for active streams
+        id_to_sid = { entry.get("server_id"): sid for sid, entry in _sessions.items() if entry.get("server_id") }
+        
+        for s in servers:
+            s_data = dict(s)
+            sid = id_to_sid.get(s["id"])
+            
+            # Case A: Live Streaming Session (User is currently in dashboard)
+            if sid and sid in _metrics_cache:
+                m = _metrics_cache[sid]
+                s_data["metrics"] = {
+                    "cpu": m.get("cpu", 0),
+                    "ram": m.get("ram", 0),
+                    "disk": m.get("disk", 0),
+                    "status": "online",
+                    "source": "streaming"
+                }
+            else:
+                # Case B: Fleet Background Worker cache
+                with _fleet_lock:
+                    fm = _fleet_metrics_cache.get(s["id"])
+                    if fm:
+                        s_data["metrics"] = {
+                            "cpu": fm.get("cpu", 0),
+                            "disk": fm.get("disk", 0),
+                            "status": fm.get("status", "offline"),
+                            "source": "fleet_worker",
+                            "used_gb": fm.get("used_gb"),
+                            "total_gb": fm.get("total_gb")
+                        }
+                    else:
+                        # Fallback: Just mark as offline or checking
+                        s_data["metrics"] = {"status": "offline", "source": "none"}
+            
+            g_name = s.get("group_name") or "General"
+            if g_name in result_groups:
+                result_groups[g_name]["servers"].append(s_data)
+
+    # Sort servers within groups by position
+    for g in result_groups.values():
+        g["servers"].sort(key=lambda x: (0 if x["metrics"]["status"] == "online" else 1, x["position"], x["alias"]))
+
+    # Return groups as a sorted list
+    sorted_groups = sorted(result_groups.values(), key=lambda x: (x["position"], x["name"]))
+    return jsonify({"ok": True, "groups": sorted_groups})
+
+# ------------------------------------------------------------------
+# API — Group Management
+# ------------------------------------------------------------------
+@main_bp.route("/api/groups", methods=["GET", "POST"])
+def api_groups():
+    from .database import get_all_groups, add_group
+    if request.method == "GET":
+        return jsonify({"ok": True, "groups": get_all_groups()})
+    
+    data = request.json
+    name = data.get("name")
+    if not name: return jsonify({"ok": False, "error": "Name required"}), 400
+    try:
+        new_g = add_group(name)
+        return jsonify({"ok": True, "group": new_g})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+@main_bp.route("/api/groups/<int:gid>", methods=["PUT", "DELETE"])
+def api_group_detail(gid):
+    from .database import update_group, delete_group
+    if request.method == "DELETE":
+        delete_group(gid)
+        return jsonify({"ok": True})
+    
+    data = request.json
+    name = data.get("name")
+    if not name: return jsonify({"ok": False, "error": "Name required"}), 400
+    update_group(gid, name)
+    return jsonify({"ok": True})
+
+@main_bp.route("/api/groups/reorder", methods=["PATCH"])
+def api_groups_reorder():
+    from .database import _conn
+    data = request.json
+    order = data.get("order") # List of {id: X, position: Y}
+    if not order: return jsonify({"ok": False}), 400
+    
+    with _conn() as c:
+        for item in order:
+            c.execute("UPDATE groups SET position=? WHERE id=?", (item['position'], item['id']))
+        c.commit()
+    return jsonify({"ok": True})
+
+# ------------------------------------------------------------------
+# API — Server Interaction
+# ------------------------------------------------------------------
+@main_bp.route("/api/servers/move", methods=["PATCH"])
+def api_server_move():
+    from .database import move_server
+    data = request.json
+    sid = data.get("server_id")
+    gid = data.get("group_id")
+    pos = data.get("position", 0)
+    if sid is None or gid is None:
+        return jsonify({"ok": False, "error": "server_id and group_id required"}), 400
+    
+    move_server(sid, gid, pos)
+    return jsonify({"ok": True})
 
 @main_bp.route("/api/servers", methods=["POST"])
 def api_servers_add():
@@ -79,18 +216,17 @@ def api_servers_add():
     ip    = (data.get("ip") or "").strip()
     user  = (data.get("user") or "").strip()
     pwd   = data.get("password", "")
-    if not alias or not ip or not user or not pwd:
-        return jsonify({"ok": False, "error": "Todos los campos son obligatorios"}), 400
-    
-    # Duplicate check
-    all_srv = get_all_servers()
-    if any(s["alias"].lower() == alias.lower() for s in all_srv):
-        return jsonify({"ok": False, "error": "Ya existe un servidor con ese nombre (Alias)"}), 400
-    if any(s["ip"] == ip for s in all_srv):
-        return jsonify({"ok": False, "error": "Ya existe un servidor con esa dirección IP"}), 400
+    # Get group_id from request
+    group_id = data.get("group_id")
+    if group_id:
+        try: group_id = int(group_id)
+        except: group_id = None
 
     try:
-        srv = add_server(alias, ip, user, pwd)
+        srv = add_server(
+            alias=alias, ip=ip, username=user, password=pwd, 
+            group_id=group_id, tags=data.get("tags", "")
+        )
         return jsonify({"ok": True, "server": srv})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 400
@@ -102,6 +238,8 @@ def api_servers_edit(sid):
     ip    = (data.get("ip") or "").strip()
     user  = (data.get("user") or "").strip()
     pwd   = data.get("password", "") or None
+    group = (data.get("client_group") or "General").strip()
+
     if not alias or not ip or not user:
         return jsonify({"ok": False, "error": "Alias, IP y usuario son obligatorios"}), 400
     
@@ -112,7 +250,14 @@ def api_servers_edit(sid):
     if any(s["ip"] == ip and s["id"] != sid for s in all_srv):
         return jsonify({"ok": False, "error": "Ya existe otro servidor con esa dirección IP"}), 400
 
-    ok = update_server(sid, alias, ip, user, pwd)
+    update_data = {
+        "alias": alias, "ip": ip, "username": user, 
+        "group_id": int(data.get("group_id")) if data.get("group_id") else None,
+        "tags": data.get("tags", "")
+    }
+    if pwd: update_data["password"] = pwd
+
+    ok = update_server(sid, **update_data)
     return jsonify({"ok": ok})
 
 @main_bp.route("/api/servers/<int:sid>", methods=["DELETE"])
@@ -157,90 +302,69 @@ def api_connect():
         return jsonify({"ok": False, "error": "Todos los campos son obligatorios"}), 400
 
     try:
+        # EXPLICIT PORT 5985 FORCED
+        ws_url = f"http://{ip.split(':')[0]}:5985/wsman"
         ws = winrm.Session(
-            ip, auth=(user, pwd),
+            ws_url, auth=(user, pwd),
             transport="ntlm",
             server_cert_validation="ignore",
             read_timeout_sec=30,
             operation_timeout_sec=25
         )
-        # Powerhell Script
+        
+        # MASTER RESET: Cleanup any previous sessions for this same IP before starting a new one
+        with _sessions_lock:
+            stale_sids = [s for s, e in _sessions.items() if e.get("ip") == ip]
+            for s in stale_sids:
+                _sessions.pop(s, None)
+                _metrics_cache.pop(s, None)
+                _net_history.pop(s, None)
+                logger.info(f"Cleaned up stale session {s} for IP {ip}")
+        # BALANCED SPECS SCRIPT: Complete yet stable
         script = r'''
-$ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
-try {
-    $c  = Get-CimInstance Win32_Processor -EA Stop
-    $os = Get-CimInstance Win32_OperatingSystem -EA Stop
-    $d  = try { Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'" -EA Stop } catch { $null }
-    $cs = Get-CimInstance Win32_ComputerSystem -EA Stop
-    $net = try { Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" -EA Stop } catch { @() }
-    
-    $uptime = (Get-Date) - $os.LastBootUpTime
-    $uptimeStr = "$($uptime.Days) d, $($uptime.Hours) h, $($uptime.Minutes) m"
-    $role = if ($cs.PartOfDomain) { "Dominio" } else { "Grupo de Trabajo" }
-    $l2 = ($c | Measure-Object L2CacheSize -Sum).Sum
-    $l3 = ($c | Measure-Object L3CacheSize -Sum).Sum
-    
-    $netAdapters = @()
-    foreach ($n in $net) {
-        $ipv4s = $n.IPAddress | Where-Object { $_ -match "\." }
-        $ip = if($ipv4s){$ipv4s -join ", "}else{"No disponible"}
-        $gws = $n.DefaultIPGateway | Where-Object { $_ -match "\." }
-        $gw = if($gws){$gws -join ", "}else{"No disponible"}
-        $dnss = $n.DNSServerSearchOrder | Where-Object { $_ -match "\." }
-        $dns = if($dnss){$dnss -join ", "}else{"No disponible"}
-        $mac = if($n.MACAddress){$n.MACAddress}else{"No disponible"}
-        $desc = if($n.Description){$n.Description}else{"Adaptador Desconocido"}
-        $netAdapters += @{ desc=$desc; ip=$ip; mac=$mac; gw=$gw; dns=$dns }
-    }
-    
-    $mem = try { Get-CimInstance Win32_PhysicalMemory -EA Stop } catch { $null }
-    $speed = if ($mem) { ($mem | Select-Object -First 1).Speed } else { 0 }
-    $manufacturer = if ($cs.Manufacturer) { $cs.Manufacturer } else { "Desconocido" }
-    
-    $specs = @{
-        ok = $true
-        cpu_name = $c[0].Name
-        cpu_cores = $c[0].NumberOfCores
-        cpu_logical = $c[0].NumberOfLogicalProcessors
-        cpu_speed = $c[0].MaxClockSpeed
-        ram_total_kb = $os.TotalVisibleMemorySize
-        disk_total_b = if($d){$d.Size}else{0}
-        cpu_l2_kb = $l2
-        cpu_l3_kb = $l3
-        cpu_virt = "$($c[0].VirtualizationFirmwareEnabled)"
-        os_version = "$($os.Caption) $($os.Version)"
-        uptime = $uptimeStr
-        hostname = $cs.Name
-        domain_role = $role
-        domain = $cs.Domain
-        net_adapters = $netAdapters
-        ram_speed = $speed
-        manufacturer = $manufacturer
-        server_roles = ""
-    }
-    Write-Output ($specs | ConvertTo-Json -Depth 5 -Compress)
-} catch {
-    $err = $_.Exception.Message.Replace('"', '\"').Replace("`n", " ")
-    Write-Output "{\`"ok\`":false,\`"error\`":\`"Excepcion de PS: $err\`"}"
-}
-'''
-        import json
+        $p = Get-CimInstance Win32_Processor;
+        $os = Get-CimInstance Win32_OperatingSystem;
+        $d = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'";
+        $cs = Get-CimInstance Win32_ComputerSystem;
+        $net = Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" | Select-Object Description, @{N='IP';E={$_.IPAddress[0]}}, MACAddress, @{N='GW';E={$_.DefaultIPGateway[0]}}, @{N='DNS';E={$_.DNSServerSearchOrder[0]}}
+        $netJson = if($net){ $net | ConvertTo-Json -Compress } else { "[]" }
+        if($net -and $net.Count -eq $null){ $netJson = "[$netJson]" } # Ensure array
+
+        "$($p[0].Name)|$($p[0].NumberOfCores)|$($p[0].NumberOfLogicalProcessors)|$($p[0].MaxClockSpeed)|$($os.TotalVisibleMemorySize)|$($d.Size)|$($cs.Name)|$($cs.Domain)|$($cs.Manufacturer)|$($os.Caption)|$($os.LastBootUpTime.ToString('yyyyMMddHHmmss'))|$netJson"
+        '''
         raw = _run_ps(ws, script)
         try:
-            data = json.loads(raw)
-            if not data.get("ok"): raise ValueError(data.get("error", "Error interno PS"))
-            specs = data
+            p = raw.split("|")
+            import json
+            try: net_adapters = json.loads(p[11])
+            except: net_adapters = []
+            
+            specs = {
+                "ok": True, 
+                "cpu_name": p[0], "cpu_cores": p[1], "cpu_logical": p[2], "cpu_speed": p[3],
+                "ram_total_kb": p[4], "disk_total_b": p[5], 
+                "hostname": p[6], "domain": p[7], "manufacturer": p[8],
+                "os_version": p[9], "raw_uptime": p[10], "net_adapters": net_adapters
+            }
         except Exception as e:
-            raise ValueError(f"No se pudo analizar la estructura del servidor: {str(e)}")
+            raise ValueError(f"Specs Error: {str(e)}")
 
         sid = secrets.token_hex(16)
         with _sessions_lock:
-            _sessions[sid] = {"session": ws, "specs": specs, "ip": ip, "user": user, "pwd": pwd}
+            _sessions[sid] = {
+                "session": ws, 
+                "specs": specs, 
+                "ip": ip, 
+                "user": user, 
+                "pwd": pwd,
+                "server_id": int(server_id) if server_id else None
+            }
 
         t = threading.Thread(target=_bg_poller, args=(sid,), daemon=True)
         _bg_threads[sid] = t
         t.start()
         session["sid"] = sid
+        session["last_ip"] = ip
         return jsonify({"ok": True, "sid": sid, "specs": specs})
 
     except Exception as exc:
@@ -277,12 +401,47 @@ def api_disconnect():
 
 @main_bp.route("/api/metrics")
 def api_metrics():
+    """
+    ULTRA-FAST CACHE-FIRST API: Multi-Server Isolated.
+    """
     sid = request.args.get("sid") or session.get("sid")
-    entry = _get_ws(sid)
-    if not entry or not entry.get("session"): return jsonify({"ok": False, "error": "No conectado"}), 401
+    client_srv_id = request.args.get("server_id") # Explicitly passed by frontend
+    
+    # Priority 1: High-Speed Detail Streaming Cache (Matched by SID)
     data = _metrics_cache.get(sid)
-    if not data: data = {"cpu":0,"ram":0,"ram_used_gb":0,"ram_free_gb":0,"disk":0,"recv_mbps":0,"sent_mbps":0,"processes":0,"threads":0,"handles":0,"disk_read":0,"disk_write":0}
-    return jsonify({"ok": True, **data})
+    if data:
+        entry = _get_ws(sid)
+        return jsonify({"ok": True, "source": "streaming", "specs": entry.get("specs") if entry else None, **data})
+
+    # Priority 2: Fleet Worker Cache Fallback (Using explicit server_id for reliability)
+    target_id = None
+    if client_srv_id:
+        try: target_id = int(client_srv_id)
+        except: pass
+    else:
+        entry = _get_ws(sid)
+        if entry: target_id = entry.get("server_id")
+
+    if target_id:
+        with _fleet_lock:
+            fm = _fleet_metrics_cache.get(target_id)
+            if fm and fm.get("status") == "online":
+                return jsonify({
+                    "ok": True,
+                    "source": "fleet",
+                    "specs": None,
+                    "cpu": fm.get("cpu", 0),
+                    "ram": fm.get("ram", 0),
+                    "disk": fm.get("disk", 0),
+                    "status": "online"
+                })
+
+    # Priority 3: Loading / No Context
+    return jsonify({
+        "ok": True, "status": "loading", 
+        "cpu": 0, "ram": 0, "disk": 0,
+        "recv_mbps": 0, "sent_mbps": 0, "processes": 0, "threads": 0
+    })
 
 @main_bp.route("/api/disks")
 def api_disks():
@@ -481,117 +640,238 @@ try {{
 # ------------------------------------------------------------------
 # Background Poller  — Streaming Mode (Ultra-Low Latency)
 # ------------------------------------------------------------------
-def _bg_poller(sid):
-    import json, time, base64
-
-    # High-speed streaming CIM poller (Universal Language Compatibility)
-    script = r'''
-$WarningPreference='SilentlyContinue';$ProgressPreference='SilentlyContinue'
-while($true) {
-  try {
-    # Fetch core platform metrics using high-speed CIM classes
-    $cpu = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'" -Property PercentProcessorTime).PercentProcessorTime
-    $os  = Get-CimInstance Win32_OperatingSystem -Property FreePhysicalMemory, NumberOfProcesses
-    $dsk = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'" -Property PercentDiskTime, DiskReadBytesPersec, DiskWriteBytesPersec
-    $sys = Get-CimInstance Win32_PerfFormattedData_PerfOS_System -Property Threads
-    
-    $ni = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -Property BytesTotalPersec | Where-Object { $_.Name -notmatch 'Loopback' }
-    $net = ($ni | Measure-Object BytesTotalPersec -Sum).Sum
-    
-    $data = @{
-      ok = $true
-      cpu = [Math]::Round([double]$cpu, 1)
-      ramFreeMB = [Math]::Round([double]$os.FreePhysicalMemory/1024, 0)
-      procs = [int]$os.NumberOfProcesses
-      threads = [int]$sys.Threads
-      dTime = [Math]::Round([Math]::Min(100, [double]$dsk.PercentDiskTime), 1)
-      dRead = [Math]::Round([double]$dsk.DiskReadBytesPersec / 1MB, 2)
-      dWrite = [Math]::Round([double]$dsk.DiskWriteBytesPersec / 1MB, 2)
-      netTotal = [double]$net
-    }
-    Write-Output ($data | ConvertTo-Json -Compress)
-  } catch {
-    Write-Output (@{ok=$false; error=$_.Exception.Message} | ConvertTo-Json -Compress)
-  }
-  Start-Sleep -Milliseconds 450
-}
-'''
-    encoded_ps = base64.b64encode(script.encode('utf_16_le')).decode('ascii')
-    # ... (Rest of the logic remains the same)
-
-    entry = _sessions.get(sid)
-    if not entry: return
-    ws = entry.get("session")
-    if not ws: return
-    protocol = ws.protocol
-    shell_id = None; command_id = None
-
-    def start_stream():
-        nonlocal shell_id, command_id
-        try:
-            if shell_id: 
-                try: protocol.close_shell(shell_id)
-                except: pass
-            shell_id = protocol.open_shell()
-            command_id = protocol.run_command(shell_id, 'powershell.exe', ['-NoProfile','-NonInteractive','-EncodedCommand',encoded_ps])
-            return True
-        except Exception as e: 
-            logger.error(f"STREAM START FAILED for {sid}: {e}")
-            return False
-
-    if not start_stream(): return
-
-    buffer = ""
-    logger.info(f"Industrial Stream started (CIM Mode) for {sid}")
-
+def _safe_float(val):
+    """Parses a float string correctly even if it uses a comma as a decimal separator."""
     try:
-        while True:
-            with _sessions_lock:
-                if sid not in _sessions: break
+        if not val or val == "0": return 0.0
+        return float(str(val).replace(',', '.'))
+    except:
+        return 0.0
 
-            try:
-                stdout, stderr, return_code, command_done = protocol.get_command_output_raw(shell_id, command_id)
-                if stdout:
-                    raw_str = stdout.decode('utf-8', errors='ignore')
-                    buffer += raw_str
-                    while "\n" in buffer:
-                        line, buffer = buffer.split("\n", 1); line = line.strip()
-                        if not line or not line.startswith("{"): continue
+def _bg_poller(sid):
+    """
+    ULTRA-ROBUST Background poller with Delta (differential) calculations.
+    """
+    import json, time, traceback
+    prev_data = {} # To store raw values for delta calc
+
+    while True:
+        try:
+            # Check if session still exists
+            with _sessions_lock:
+                entry = _sessions.get(sid)
+                if not entry:
+                    logger.info(f"Session {sid} closed. Poller exiting.")
+                    break
+                ws = entry.get("session")
+                specs = entry.get("specs", {})
+                ip = entry.get("ip")
+
+            if not ws:
+                # Restore session with explicit port
+                with _sessions_lock:
+                    entry = _sessions.get(sid)
+                    if entry and entry.get("ip"):
                         try:
-                            data = json.loads(line)
-                            if data.get("ok"):
-                                now = time.perf_counter()
-                                rt_mb = float(entry["specs"].get("ram_total_kb", 1024*1024)) / 1024
-                                rf_mb = float(data.get("ramFreeMB") or 0)
-                                mbps = (float(data.get("netTotal") or 0) * 8) / 1e6
-                                
-                                _metrics_cache[sid] = {
-                                    "cpu": data.get("cpu", 0),
-                                    "ram": round(((rt_mb - rf_mb) / rt_mb) * 100, 1) if rt_mb > 0 else 0,
-                                    "disk": data.get("dTime", 0),
-                                    "recv_mbps": round(mbps * 0.7, 2),
-                                    "sent_mbps": round(mbps * 0.3, 2),
-                                    "processes": data.get("procs") or 0,
-                                    "threads": data.get("threads") or 0,
-                                    "disk_read": data.get("dRead") or 0,
-                                    "disk_write": data.get("dWrite") or 0
-                                }
-                            else:
-                                logger.warning(f"PS Stream Error from server {sid}: {data.get('error')}")
-                        except Exception as je: 
-                            logger.error(f"JSON Parse error for {sid}: {je} | Raw: {line[:60]}...")
-                
-                if command_done:
-                    logger.info(f"Stream command finished for {sid}, restarting...")
-                    if not start_stream(): break
-                time.sleep(0.05)
+                            ws_url = f"http://{entry['ip'].split(':')[0]}:5985/wsman"
+                            ws = winrm.Session(
+                                ws_url, auth=(entry["user"], entry["pwd"]),
+                                transport="ntlm", server_cert_validation="ignore",
+                                read_timeout_sec=30, operation_timeout_sec=25
+                            )
+                            entry["session"] = ws
+                            logger.info(f"Session restored for SID {sid}")
+                        except: pass
+                if not ws:
+                    time.sleep(2); continue
+
+            # INSTANT MONITOR (No averaging for realistic spikes)
+            ps = r'''
+            $ErrorActionPreference='SilentlyContinue';
+            $c = (Get-CimInstance Win32_Processor).LoadPercentage[0];
+            $m = Get-CimInstance Win32_OperatingSystem;
+            $d = Get-CimInstance Win32_PerfRawData_PerfDisk_PhysicalDisk -Filter "Name='_Total'";
+            $s = Get-CimInstance Win32_PerfFormattedData_PerfOS_System;
+            $ni = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface;
+            $net = if($ni){($ni | Measure-Object BytesTotalPersec -Sum).Sum}else{0};
+            
+            "$($c)|$($m.FreePhysicalMemory)|$($m.NumberOfProcesses)|$($s.Threads)|$($d.PercentDiskTime)|$($d.DiskReadBytesPersec)|$($d.DiskWriteBytesPersec)|$($net)"
+            '''
+            
+            try:
+                res = ws.run_ps(ps)
             except Exception as e:
-                logger.error(f"Streaming loop error for {sid}: {e}")
-                time.sleep(1)
-                if not start_stream(): break
-    finally:
-        if shell_id:
-            try: 
-                protocol.close_shell(shell_id)
-            except: 
-                pass
+                # If we get a 400 Bad Request or similar transport error, the session is corrupted.
+                # Force a reset so the block above attempts a reconnect.
+                if "400" in str(e) or "bad http response" in str(e).lower():
+                    logger.warning(f"Session corrupted for {sid}, resetting: {e}")
+                    with _sessions_lock:
+                        if sid in _sessions:
+                            _sessions[sid]["session"] = None # Force reconnect next loop
+                raise # Let the outer try-except log it and sleep
+            
+            if res.status_code == 0:
+                raw = res.std_out.decode('utf-8', errors='ignore').strip()
+                parts = raw.split('|')
+                if len(parts) >= 8:
+                    now = time.time()
+                    dt = now - prev_data.get('ts', now - 1)
+                    if dt <= 0: dt = 1.0
+                    
+                    cpu = int(parts[0])
+                    free_kb = _safe_float(parts[1])
+                    procs = int(parts[2])
+                    threads = int(parts[3])
+                    
+                    # DISK DELTA
+                    raw_disk_ticks = _safe_float(parts[4])
+                    raw_read = _safe_float(parts[5])
+                    raw_write = _safe_float(parts[6])
+                    
+                    disk_pct = 0
+                    d_read = 0
+                    d_write = 0
+                    
+                    if 'disk' in prev_data:
+                        # Raw ticks to % approx (simplified delta)
+                        d_ticks = max(0, raw_disk_ticks - prev_data['disk'])
+                        disk_pct = min(100, (d_ticks / (dt * 1e7)) * 100) if raw_disk_ticks > 0 else 0
+                        d_read = round(max(0, raw_read - prev_data['read']) / (dt * 1e6), 2)
+                        d_write = round(max(0, raw_write - prev_data['write']) / (dt * 1e6), 2)
+                    
+                    prev_data.update({'disk': raw_disk_ticks, 'read': raw_read, 'write': raw_write, 'ts': now})
+                    
+                    net_bytes = _safe_float(parts[7])
+                    mbps = 0
+                    if 'net' in prev_data:
+                        mbps = max(0, (net_bytes - prev_data['net']) * 8) / (dt * 1e6)
+                    prev_data['net'] = net_bytes
+                    
+                    # RAM
+                    total_kb = float(specs.get("ram_total_kb") or 1)
+                    ram_pct = round(((total_kb - free_kb) / total_kb) * 100, 1) if total_kb > 0 else 0
+
+                    # Success: Update cache with Rounded values
+                    _metrics_cache[sid] = {
+                        "cpu": max(0, min(100, cpu)),
+                        "ram": max(0, min(100, ram_pct)),
+                        "disk": round(max(0, min(100, disk_pct)), 1),
+                        "recv_mbps": round(mbps * 0.7, 2),
+                        "sent_mbps": round(mbps * 0.3, 2),
+                        "processes": procs,
+                        "threads": threads,
+                        "disk_read": d_read,
+                        "disk_write": d_write
+                    }
+                    with open("poller_debug.txt", "a") as f:
+                        f.write(f"SUCCESS SID {sid} parts {parts}\n")
+                else:
+                    with open("poller_debug.txt", "a") as f:
+                        f.write(f"PARTS TOO SHORT: {raw}\n")
+            else:
+                logger.warning(f"WinRM Poll failed for {ip} (SID {sid}): {res.std_err.decode('utf-8', errors='ignore')}")
+                with open("poller_debug.txt", "a") as f:
+                    f.write(f"STATUS CODE FAIL: {res.status_code}\n")
+
+        except Exception as e:
+            logger.error(f"POLLER CRITICAL ERROR for {sid}: {traceback.format_exc()}")
+            with open("poller_debug.txt", "a") as f:
+                f.write(f"CRITICAL: {traceback.format_exc()}\n")
+        
+        time.sleep(0.7) # Synchronized with frontend (0.9s)
+
+# ------------------------------------------------------------------
+# GLOBAL FLEET WORKER (Fleet NOC metrics)
+# ------------------------------------------------------------------
+_fleet_sessions = {} # server_id -> Session object (persistent)
+
+def _fleet_worker_loop():
+    """Enterprise-grade concurrent worker for high-scale monitoring (40+ servers)."""
+    from .database import decrypt_password, _conn
+    from concurrent.futures import ThreadPoolExecutor
+    import time
+
+    logger.info("🚀 GLOBAL FLEET WORKER: CONCURRENCY MODE ACTIVE")
+    
+    while True:
+        try:
+            # 1. Fetch current server list
+            servers = []
+            with _conn() as c:
+                rows = c.execute("SELECT id, ip, username, password_enc FROM servers").fetchall()
+                servers = [dict(r) for r in rows]
+            
+            if not servers:
+                time.sleep(10); continue
+
+            # 2. Define the individual worker task
+            def poll_one(s):
+                srv_id = s["id"]
+                ip = s["ip"]
+                
+                # PRE-FLIGHT: Fast socket check (1s timeout)
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                        sock.settimeout(1.0)
+                        if sock.connect_ex((ip, 5985)) != 0:
+                            return srv_id, {"status": "offline"}
+                except:
+                    return srv_id, {"status": "offline"}
+
+                try:
+                    # SESSION REUSE: Avoid handshake overhead
+                    if srv_id not in _fleet_sessions:
+                        pwd = decrypt_password(s["password_enc"])
+                        _fleet_sessions[srv_id] = winrm.Session(
+                            ip, auth=(s["username"], pwd), 
+                            transport="ntlm", server_cert_validation="ignore",
+                            read_timeout_sec=10, operation_timeout_sec=8
+                        )
+                    
+                    ws = _fleet_sessions[srv_id]
+                    # Optimized NOC query: Instant CPU + Disk Space
+                    ps = r'''
+                    $ErrorActionPreference='Stop';
+                    $c = (Get-CimInstance Win32_Processor).LoadPercentage[0]; # Instant, no average
+                    $d = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'";
+                    $total = [math]::Round($d.Size / 1GB, 0);
+                    $free = [math]::Round($d.FreeSpace / 1GB, 0);
+                    $used = $total - $free;
+                    $pct = if($total -gt 0){ [math]::Round(($used/$total)*100,0) }else{0};
+                    "$c;$pct;$used;$total"
+                    '''
+                    res = ws.run_ps(ps)
+                    if res.status_code == 0:
+                        raw = res.std_out.decode('utf-8', errors='ignore').strip()
+                        parts = raw.split(';')
+                        if len(parts) >= 4:
+                            return srv_id, {
+                                "status": "online",
+                                "cpu": int(parts[0]),
+                                "disk": int(parts[1]),
+                                "used_gb": int(parts[2]),
+                                "total_gb": int(parts[3]),
+                                "last_sync": time.time()
+                            }
+                except Exception as e:
+                    _fleet_sessions.pop(srv_id, None) # Clear corrupted session
+                
+                return srv_id, {"status": "online"} # Placeholder if PS failed but connection is up
+
+            # 3. Parallel Execution with controlled max_workers
+            with ThreadPoolExecutor(max_workers=20) as executor:
+                results = list(executor.map(poll_one, servers))
+            
+            # 4. Atomic Cache Update (Thread-Safe)
+            with _fleet_lock:
+                for srv_id, metrics in results:
+                    _fleet_metrics_cache[srv_id] = metrics
+                    
+        except Exception as ge:
+            logger.error(f"FATAL FLEET WORKER ERROR: {ge}")
+            
+        # 5. ENTERPRISE REST INTERVAL (30s)
+        time.sleep(30) 
+
+# Start the thread on module import
+threading.Thread(target=_fleet_worker_loop, daemon=True).start()
