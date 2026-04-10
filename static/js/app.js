@@ -4,6 +4,7 @@
 
 let SID = null;
 let SPECS = {};
+let ISOLATED_GROUP = null; // New state for isolating a single group
 let POLL = null;
 const MAX_PTS = 100; // Increased points for smoother look
 
@@ -15,11 +16,17 @@ const history = {
 let chartCpuRam = null;
 let chartNet = null;
 let visible = { cpu: true, ram: true, disk: true, net: true };
+let connAbortController = null; // High-performance cancellation
 
 /* =============================================================
    HOME — Dynamic Server Cards & Drag & Drop
    ============================================================= */
-document.addEventListener('DOMContentLoaded', () => loadServerCards());
+document.addEventListener('DOMContentLoaded', () => {
+    // Immediate first load
+    loadServerCards();
+    // Fast second pulse for NOC data
+    setTimeout(loadServerCards, 1500); 
+});
 
 // Persist open groups in localStorage
 const savedGroups = localStorage.getItem('openedGroups');
@@ -36,15 +43,64 @@ function escapeHTML(str) {
   });
 }
 
+let CURRENT_FLTR = JSON.parse(localStorage.getItem('serverFltr')) || { mode: 'none', dir: 'desc' };
+let RESOURCE_FLTR = null; // New state for filtering alerts by resource
+
+function toggleFilter(metric) {
+  if (CURRENT_FLTR.mode === metric) {
+    if (CURRENT_FLTR.dir === 'desc') {
+      CURRENT_FLTR.dir = 'asc';
+    } else {
+      CURRENT_FLTR.mode = 'none'; // Toggle off
+    }
+  } else {
+    CURRENT_FLTR.mode = metric;
+    CURRENT_FLTR.dir = 'desc';
+  }
+  localStorage.setItem('serverFltr', JSON.stringify(CURRENT_FLTR));
+  loadServerCards();
+}
+
+/**
+ * Updates the visual state of the filter pills
+ */
+function updatePillUI() {
+  document.querySelectorAll('.pill-btn').forEach(btn => {
+    const metric = btn.id.replace('fltr-', '');
+    const span = btn.querySelector('span');
+    btn.classList.remove('active-desc', 'active-asc');
+    if (span) span.textContent = '';
+
+    if (CURRENT_FLTR.mode === metric) {
+      if (CURRENT_FLTR.dir === 'desc') {
+        btn.classList.add('active-desc');
+        if (span) span.textContent = '↓';
+      } else {
+        btn.classList.add('active-asc');
+        if (span) span.textContent = '↑';
+      }
+    }
+  });
+}
+
 async function loadServerCards() {
   const grid = document.getElementById('servers-grid');
+  updatePillUI();
+
   try {
     const res = await fetch('/api/servers');
-    const data = await res.json();
-    if (!data.ok) return;
+    let data = await res.json();
+    if (!data) return;
+
+    const allGroups = data.groups || data || [];
+    let groups = [...allGroups];
+
+    // IMPLEMENT ISOLATION FOR THE MAIN GRID ONLY
+    if (ISOLATED_GROUP) {
+      groups = groups.filter(g => String(g.id) === String(ISOLATED_GROUP));
+    }
 
     let html = '';
-    const groups = data.groups || [];
 
     if (groups.length === 0) {
       grid.innerHTML = `
@@ -63,7 +119,41 @@ async function loadServerCards() {
     groups.forEach(group => {
       const gName = escapeHTML(group.name);
       const gid = group.id;
-      const servers = group.servers || [];
+      let servers = group.servers || [];
+
+      // DYNAMIC SORTING LOGIC
+    servers.sort((a, b) => {
+          const ma = a.metrics || {};
+          const mb = b.metrics || {};
+          
+          // ABSOLUTE RULE 1: Online > Offline
+          const statusA = ma.status === 'online' ? 1 : 0;
+          const statusB = mb.status === 'online' ? 1 : 0;
+          if (statusA !== statusB) return statusB - statusA;
+
+          // If both are offline, keep alphabetical
+          if (statusA === 0) return a.alias.localeCompare(b.alias);
+
+          // ABSOLUTE RULE 2: If both online, use current filter or default to 'critical'
+          const mode = CURRENT_FLTR.mode === 'none' ? 'critical' : CURRENT_FLTR.mode;
+          const dir = CURRENT_FLTR.dir === 'desc' ? 1 : -1;
+
+          if (mode === 'cpu') {
+              return dir * ((mb.cpu || 0) - (ma.cpu || 0));
+          } else if (mode === 'disk') {
+              return dir * ((mb.disk || 0) - (ma.disk || 0));
+          } else {
+              // 'critical' mode: Hybrid score of CPU and Disk
+              const scoreA = (ma.cpu || 0) + (ma.disk || 0);
+              const scoreB = (mb.cpu || 0) + (mb.disk || 0);
+              if (scoreA !== scoreB) {
+                  return dir * (scoreB - scoreA);
+              }
+          }
+          // Tie-break: Alphabetical
+          return a.alias.localeCompare(b.alias);
+      });
+
       const isClosed = !OPEN_GROUPS.has(group.name);
       const isEmpty = servers.length === 0;
       
@@ -111,6 +201,13 @@ async function loadServerCards() {
                       <span style="width:25px; text-align:right">${cpu}%</span>
                     </div>
                     <div class="mc-bar-item">
+                      <span>RAM</span>
+                      <div class="mc-bar-wrap">
+                        <div class="mc-bar-fill" style="width:${m.ram || 0}%; background:${colorForPct(m.ram || 0)}"></div>
+                      </div>
+                      <span style="width:25px; text-align:right">${(m.ram || 0).toFixed(0)}%</span>
+                    </div>
+                    <div class="mc-bar-item">
                       <span>DSK</span>
                       <div class="mc-bar-wrap">
                         <div class="mc-bar-fill" style="width:${disk}%; background:${colorForPct(disk)}"></div>
@@ -121,10 +218,14 @@ async function loadServerCards() {
                     </div>
                   </div>
                   ` : `
-                  <div style="margin-top:10px; font-size:0.7rem; color:var(--danger); font-weight:600">
-                    DESCONECTADO
+                  <div style="margin-top:10px; font-size:0.7rem; color:var(--danger); font-weight:600; display:flex; flex-direction:column; gap:2px;">
+                    <div>${m.status === 'shutting_down' ? '🛑 APAGANDO...' : '❌ DESCONECTADO'}</div>
+                    ${s.last_seen ? `<div style="font-size:0.6rem; opacity:0.5; font-weight:400;">Last: ${s.last_seen}</div>` : ''}
                   </div>
                   `}
+                  <div class="source-indicator" style="position:absolute; bottom:5px; right:8px; font-size:0.55rem; opacity:0.3; text-transform:uppercase;">
+                    ${m.source === 'agent' ? '⚡ Agente' : '☁️ Polling'}
+                  </div>
                 </div>
               `;
             }).join('')}
@@ -135,10 +236,158 @@ async function loadServerCards() {
 
     grid.innerHTML = html;
     initSortable();
-
+    
+    // Auto-update dashboard health analytics (Pass allGroups for the Sidebar)
+    if (typeof updateNocDashboard === 'function') updateNocDashboard(allGroups);
   } catch (e) {
-    console.error("Error loading NOC dashboard:", e);
+    console.error("Error loading server cards:", e);
   }
+}
+
+/**
+ * NOC LOGIC: Calculates global health and generates alerts
+ */
+function updateNocDashboard(groups) {
+    let serversTotal = 0;
+    let counts = { cpu: 0, ram: 0, disk: 0 };
+    let alerts = [];
+    let groupLinksHtml = '';
+
+    groups.forEach(group => {
+        groupLinksHtml += `<div class="nav-item" onclick="scrollToGroup('${group.id}')"><span>📂</span> ${escapeHTML(group.name)}</div>`;
+        (group.servers || []).forEach(s => {
+            serversTotal++;
+            const m = s.metrics || {};
+            const sId = s.id;
+            const sIp = s.ip;
+
+            if (m.status === 'online') {
+                const cpu = m.cpu || 0;
+                const ram = m.ram || 0;
+                const disk = m.disk || 0;
+
+                if (cpu > 80) {
+                    counts.cpu++;
+                    alerts.push({ res: 'cpu', type: 'emergency', title: s.alias, sid: sId, ip: sIp, desc: `CPU Crítica: ${cpu.toFixed(1)}%` });
+                }
+                if (ram > 80) {
+                    counts.ram++;
+                    alerts.push({ res: 'ram', type: 'emergency', title: s.alias, sid: sId, ip: sIp, desc: `RAM Crítica: ${ram.toFixed(1)}%` });
+                }
+                if (disk > 80) {
+                    counts.disk++;
+                    alerts.push({ res: 'disk', type: 'emergency', title: s.alias, sid: sId, ip: sIp, desc: `Disco casi lleno: ${disk}%` });
+                }
+            }
+        });
+    });
+
+    // 1. Update 3 Cyclograms
+    const circ = 283;
+    const totalSafe = serversTotal || 1;
+    
+    ['cpu', 'ram', 'disk'].forEach(res => {
+        const ring = document.getElementById(`ring-${res}`);
+        const valText = document.getElementById(`status-${res}-val`);
+        const container = document.getElementById(`ciclo-${res}-container`);
+        
+        if (ring && valText) {
+            const count = counts[res];
+            const pct = count / totalSafe;
+            
+            // Clean UI: Hide the ring if there are 0 critical cases
+            if (count === 0) {
+                ring.style.stroke = 'transparent';
+                ring.style.strokeDasharray = `0 ${circ}`;
+            } else {
+                ring.style.stroke = 'var(--danger)';
+                ring.style.strokeDasharray = `${circ * pct} ${circ}`;
+            }
+            ring.style.strokeDashoffset = 0;
+            valText.textContent = count;
+
+            if (RESOURCE_FLTR === res) container.classList.add('active');
+            else container.classList.remove('active');
+        }
+    });
+
+    // 2. Update Alerts Panel (Filtered by Resource)
+    const alertList = document.getElementById('global-alerts');
+    const alertBadge = document.getElementById('alert-count-badge');
+    if (alertList) {
+        let displayAlerts = alerts;
+        if (RESOURCE_FLTR) {
+            displayAlerts = alerts.filter(a => a.res === RESOURCE_FLTR);
+        }
+
+        if (displayAlerts.length === 0) {
+            alertList.innerHTML = `<div style="text-align:center; padding:40px; opacity:0.3;"><div style="font-size:2rem; margin-bottom:10px;">🛡️</div><p style="font-size:0.75rem;">No hay alertas activas de este tipo.</p></div>`;
+            alertBadge.textContent = '0';
+        } else {
+            alertBadge.textContent = displayAlerts.length;
+            alertList.innerHTML = displayAlerts.map(a => `
+                <div class="alert-card ${a.type}" onclick="connectToServer(${a.sid}, '${a.ip}')">
+                    <div class="alert-header">
+                        <span>🚨 ${a.res.toUpperCase()}</span>
+                        <span>Crítico</span>
+                    </div>
+                    <div class="alert-title">${escapeHTML(a.title)}</div>
+                    <div class="alert-desc">${a.desc}</div>
+                </div>
+            `).join('');
+        }
+    }
+
+    // 3. Update Nav Groups
+    const navGroups = document.getElementById('nav-groups-list');
+    if (navGroups) navGroups.innerHTML = groupLinksHtml;
+}
+
+function toggleResourceFilter(res) {
+    if (RESOURCE_FLTR === res) RESOURCE_FLTR = null;
+    else RESOURCE_FLTR = res;
+    
+    // Refresh UI immediately
+    loadServerCards();
+}
+
+function scrollToGroup(gid) {
+    // Apply isolation: we only want to see this group
+    ISOLATED_GROUP = gid;
+    
+    // Switch to servers view
+    switchNocTab('servers');
+    
+    // Reload cards with isolation active
+    loadServerCards();
+}
+
+function switchNocTab(tab) {
+    const homeView = document.querySelector('.health-center');
+    const serversView = document.getElementById('noc-servers-view');
+    const navHome = document.getElementById('nav-noc-home');
+    const navServers = document.getElementById('nav-noc-servers');
+
+    if (tab === 'home') {
+        homeView.style.setProperty('display', 'flex', 'important');
+        serversView.style.display = 'none';
+        navHome.classList.add('active');
+        navServers.classList.remove('active');
+        ISOLATED_GROUP = null; // Clear isolation when going home
+        loadServerCards(); // Recalculate global health
+    } else {
+        homeView.style.display = 'none';
+        serversView.style.display = 'block';
+        navHome.classList.remove('active');
+        navServers.classList.add('active');
+        loadServerCards();
+    }
+}
+
+// Global helper to reset isolation
+function showAllServers() {
+    ISOLATED_GROUP = null;
+    switchNocTab('servers');
 }
 
 // Global Refresh Interval (Syncs every 10s)
@@ -186,7 +435,20 @@ function initSortable() {
       ghostClass: 'sortable-ghost',
       dragClass: 'sortable-drag',
       onStart: () => { window._isDragging = true; },
+      onMove: (evt) => {
+          // If hovering over a closed group, open it automatically
+          const targetGroup = evt.to.closest('.server-group');
+          if (targetGroup && targetGroup.classList.contains('closed')) {
+              if (window._openTimer) clearTimeout(window._openTimer);
+              window._openTimer = setTimeout(() => {
+                  if (targetGroup.classList.contains('closed')) {
+                      toggleGroup(targetGroup);
+                  }
+              }, 150); // Reduced delay for instant UX
+          }
+      },
       onEnd: async (evt) => {
+        if (window._openTimer) clearTimeout(window._openTimer);
         window._isDragging = false;
         const sid = evt.item.dataset.sid;
         const newGid = evt.to.dataset.gid;
@@ -214,9 +476,10 @@ function initSortable() {
  * Updates group counts and ghost states instantly based on DOM state
  */
 function updateUIStats() {
+  const grid = document.getElementById('servers-grid');
   document.querySelectorAll('.server-group').forEach(group => {
     const content = group.querySelector('.group-content');
-    const countSpan = group.querySelector('.group-count');
+    const countSpan = group.querySelector('.count'); // Corrected selector (was .group-count)
     if (!content || !countSpan) return;
 
     const currentCount = content.querySelectorAll('.mini-card').length;
@@ -224,6 +487,10 @@ function updateUIStats() {
 
     if (currentCount === 0) {
       group.classList.add('is-ghost');
+      // Auto-move to bottom of the grid if not already there
+      if (grid && group.nextElementSibling) {
+          grid.appendChild(group);
+      }
     } else {
       group.classList.remove('is-ghost');
     }
@@ -517,14 +784,22 @@ async function connectToServer(serverId, ip) {
     errBox.classList.add('show');
     spinner.style.display = 'none';
     iconErr.style.display = 'block';
+    closeBtn.onclick = () => {
+      if (connAbortController) connAbortController.abort();
+      modal.classList.remove('active');
+    };
     closeBtn.style.display = 'block';
   };
+
+  if (connAbortController) connAbortController.abort();
+  connAbortController = new AbortController();
 
   try {
     const res = await fetch('/api/connect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ server_id: serverId })
+      body: JSON.stringify({ server_id: serverId }),
+      signal: connAbortController.signal
     });
     const data = await res.json();
 
@@ -545,7 +820,10 @@ async function connectToServer(serverId, ip) {
     modal.classList.remove('active');
     enterDashboard(ip);
   } catch (e) {
+    if (e.name === 'AbortError') return console.log("Connection canceled.");
     showError('Error', 'No se pudo contactar con el backend (Servidor Web caído o inalcanzable).');
+  } finally {
+    connAbortController = null;
   }
 }
 
@@ -631,7 +909,7 @@ async function _runHeartbeat() {
     // Silently handle transient errors for a smoother experience
   } finally {
     if (SID && _pollActive) {
-      POLL = setTimeout(_runHeartbeat, 900);
+      POLL = setTimeout(_runHeartbeat, 700);
     }
   }
 }
@@ -1211,8 +1489,14 @@ function renderSpecs() {
    ============================================================= */
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    if (connAbortController) {
+       connAbortController.abort();
+       const m = document.getElementById('connecting-modal');
+       if (m) m.classList.remove('active');
+    }
     closeServerModal();
     closeDhcpModal();
   }
   if (e.key === 'Enter' && document.getElementById('server-modal').classList.contains('active')) saveServer();
 });
+

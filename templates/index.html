@@ -15,31 +15,140 @@
 <body>
 
   <!-- ============================================================
-     PANTALLA HOME — Grid de Servidores Dinámico
+     PANTALLA HOME — NOC OPERATIONS CENTER
      ============================================================ -->
   <div id="home-screen">
+    
+    <!-- Top Header -->
     <div class="home-header">
       <img src="/logo" alt="Logo" id="home-logo">
-      <h1>Call Me If You Go Offline</h1>
-      <p>Panel de monitorización remota para Windows Server</p>
+      <div style="flex:1">
+        <h1>Call Me If You Go Offline</h1>
+        <p>Centro de Operaciones NOC · Monitorización de Flota</p>
+      </div>
+      <div class="search-wrap">
+        <input type="text" id="server-search" placeholder="Filtrar por alias..." oninput="filterServers(this.value)">
+        <span class="search-icon">🔍</span>
+      </div>
     </div>
 
-    <!-- NOC Toolbar -->
-    <div class="home-toolbar">
-      <div class="ht-left">
-        <button class="btn btn-primary" onclick="openAddServerModal()"><span style="margin-right:8px">＋</span> Nuevo Servidor</button>
-        <button class="btn btn-ghost" onclick="openGroupsModal()"><span style="margin-right:8px">📁</span> Gestionar Grupos</button>
-      </div>
-      <div class="ht-right">
-        <div class="search-wrap">
-          <input type="text" id="server-search" placeholder="Filtrar por alias, IP o etiqueta..." oninput="filterServers(this.value)">
-          <span class="search-icon">🔍</span>
+    <!-- MAIN NOC LAYOUT -->
+    <div class="noc-layout">
+      
+      <!-- 1. LEFT: SIDE NAVIGATION -->
+      <aside class="side-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Menú Principal</div>
+          <div class="nav-list">
+            <div class="nav-item active" id="nav-noc-home" onclick="switchNocTab('home')">
+              <span>🏠</span> Dashboard Global
+            </div>
+            <div class="nav-item" id="nav-noc-servers" onclick="showAllServers()">
+              <span>🖥️</span> Servidores
+            </div>
+            <div class="nav-item" onclick="openAddServerModal()">
+              <span>＋</span> Nuevo Servidor
+            </div>
+            <div class="nav-item" onclick="openGroupsModal()">
+              <span>📁</span> Gestionar Grupos
+            </div>
+          </div>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Grupos de Servidores</div>
+          <div class="nav-list" id="nav-groups-list">
+             <!-- Se llena dinámicamente con los nombres de los grupos -->
+             <div style="padding-left:10px; color:var(--muted); font-size:0.75rem;">Cargando grupos...</div>
+          </div>
+        </div>
+        
+      </aside>
+
+      <!-- 2. MIDDLE: HEALTH CENTER (CICLOGRAMA) & CARDS -->
+      <div class="health-overview">
+        <div class="health-center">
+            <!-- CPU Cyclogram -->
+            <div class="ciclograma-container" id="ciclo-cpu-container" onclick="toggleResourceFilter('cpu')">
+              <div class="ciclograma-wrap">
+                 <svg class="ciclograma-svg" viewBox="-10 -10 120 120">
+                    <circle class="ciclo-bg" cx="50" cy="50" r="45"></circle>
+                    <circle id="ring-cpu" class="ciclo-progress" cx="50" cy="50" r="45" stroke-dasharray="283" stroke-dashoffset="283" style="stroke:var(--danger)"></circle>
+                 </svg>
+                 <div class="ciclo-info">
+                    <div class="ciclo-label">CPU</div>
+                    <div id="status-cpu-val" class="ciclo-status">0</div>
+                    <div style="font-size:0.6rem; text-transform:uppercase; opacity:0.6;">Críticos</div>
+                 </div>
+              </div>
+            </div>
+
+            <!-- RAM Cyclogram -->
+            <div class="ciclograma-container" id="ciclo-ram-container" onclick="toggleResourceFilter('ram')">
+              <div class="ciclograma-wrap">
+                 <svg class="ciclograma-svg" viewBox="-10 -10 120 120">
+                    <circle class="ciclo-bg" cx="50" cy="50" r="45"></circle>
+                    <circle id="ring-ram" class="ciclo-progress" cx="50" cy="50" r="45" stroke-dasharray="283" stroke-dashoffset="283" style="stroke:var(--danger)"></circle>
+                 </svg>
+                 <div class="ciclo-info">
+                    <div class="ciclo-label">RAM</div>
+                    <div id="status-ram-val" class="ciclo-status">0</div>
+                    <div style="font-size:0.6rem; text-transform:uppercase; opacity:0.6;">Críticos</div>
+                 </div>
+              </div>
+            </div>
+
+            <!-- DISK Cyclogram -->
+            <div class="ciclograma-container" id="ciclo-disk-container" onclick="toggleResourceFilter('disk')">
+              <div class="ciclograma-wrap">
+                 <svg class="ciclograma-svg" viewBox="-10 -10 120 120">
+                    <circle class="ciclo-bg" cx="50" cy="50" r="45"></circle>
+                    <circle id="ring-disk" class="ciclo-progress" cx="50" cy="50" r="45" stroke-dasharray="283" stroke-dashoffset="283" style="stroke:var(--danger)"></circle>
+                 </svg>
+                 <div class="ciclo-info">
+                    <div class="ciclo-label">Disco</div>
+                    <div id="status-disk-val" class="ciclo-status">0</div>
+                    <div style="font-size:0.6rem; text-transform:uppercase; opacity:0.6;">Críticos</div>
+                 </div>
+              </div>
+            </div>
+        </div>
+        <p style="text-align:center; color:var(--muted); font-size:0.85rem; margin-top:15px;">
+           Haz clic en una métrica para filtrar los avisos de emergencia de la derecha.
+        </p>
+
+        <!-- El grid de servidores ahora es una sección independiente ocultable -->
+        <div id="noc-servers-view" style="display:none; margin-top:0;">
+          <div class="nav-section-title" style="padding-left:0; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+             <span>Monitorización de Servidores</span>
+             <div class="filter-pills" id="filter-pills" style="margin:0">
+                <button class="pill-btn" id="fltr-critical" onclick="toggleFilter('critical')">🔥 Crítico <span></span></button>
+                <button class="pill-btn" id="fltr-cpu" onclick="toggleFilter('cpu')">⚙️ CPU <span></span></button>
+                <button class="pill-btn" id="fltr-disk" onclick="toggleFilter('disk')">💾 Disco <span></span></button>
+             </div>
+          </div>
+          <div class="servers-grid" id="servers-grid">
+            <!-- Se llena dinámicamente por JS -->
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="servers-grid" id="servers-grid">
-      <!-- Se llena dinámicamente por JS -->
+      <!-- 3. RIGHT: ALERT PANEL -->
+      <aside class="alert-panel">
+        <div class="nav-section-title" style="padding-left:0; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+          Avisos de Emergencia
+          <span id="alert-count-badge" style="background:var(--danger); color:white; padding:2px 8px; border-radius:10px; font-size:0.6rem;">0</span>
+        </div>
+        
+        <div class="alert-list" id="global-alerts">
+           <!-- Alertas generadas por umbrales > 80% -->
+           <div style="text-align:center; padding:40px; opacity:0.3;">
+              <div style="font-size:2rem; margin-bottom:10px;">🛡️</div>
+              <p style="font-size:0.75rem;">No hay alertas activas.<br>Sistema estable.</p>
+           </div>
+        </div>
+      </aside>
+
     </div>
   </div>
 
@@ -307,6 +416,7 @@
             <p style="color:var(--muted)">Cargando scopes DHCP…</p>
           </div>
         </div>
+
 
       </main>
     </div>

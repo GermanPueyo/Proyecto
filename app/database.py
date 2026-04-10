@@ -71,6 +71,9 @@ def init_db():
                 group_id     INTEGER,
                 tags         TEXT    DEFAULT '',
                 position     INTEGER NOT NULL DEFAULT 0,
+                is_agent     BOOLEAN NOT NULL DEFAULT 0,
+                status       TEXT    DEFAULT 'offline',
+                last_seen    DATETIME,
                 FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
             )
         """)
@@ -89,6 +92,12 @@ def init_db():
                     c.execute("ALTER TABLE servers ADD COLUMN tags TEXT DEFAULT ''")
                 if 'position' not in cols:
                     c.execute("ALTER TABLE servers ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+                if 'is_agent' not in cols:
+                    c.execute("ALTER TABLE servers ADD COLUMN is_agent BOOLEAN NOT NULL DEFAULT 0")
+                if 'status' not in cols:
+                    c.execute("ALTER TABLE servers ADD COLUMN status TEXT DEFAULT 'offline'")
+                if 'last_seen' not in cols:
+                    c.execute("ALTER TABLE servers ADD COLUMN last_seen DATETIME")
 
                 # Extract existing unique groups
                 old_groups = c.execute("SELECT DISTINCT client_group FROM servers WHERE client_group IS NOT NULL").fetchall()

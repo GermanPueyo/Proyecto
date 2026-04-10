@@ -1,0 +1,25 @@
+1. Activación Base del Servicio WinRM
+Este es el comando principal que enciende el motor y abre el firewall por defecto.
+
+PowerShell
+Enable-PSRemoting -Force
+
+2. Permisos de Conexión para Python (Entorno Local)
+Estos tres comandos rebajan la seguridad estricta de Windows para permitir que tu script de Python entre usando una IP directa, con usuario/contraseña básicos y sin necesidad de certificados HTTPS complejos.
+
+PowerShell
+# Permite conexiones desde cualquier máquina (tu Host de Python)
+Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
+
+# Habilita el inicio de sesión con usuario y contraseña normal
+winrm set winrm/config/service/auth '@{Basic="true"}'
+
+# Permite el tráfico HTTP sin encriptación SSL (solo para red local)
+winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+
+3. Ajuste de Rendimiento (Evitar Error 400)
+Este comando amplía el tamaño máximo de los paquetes de datos que el servidor puede enviar de golpe, subiéndolo de 500 KB a 2 MB. Imprescindible para que no se ahogue al enviar la lista completa de Servicios o Características.
+
+PowerShell
+# Versión nativa de PowerShell (más segura contra errores de sintaxis)
+Set-Item WSMan:\localhost\MaxEnvelopeSizekb -Value 2048

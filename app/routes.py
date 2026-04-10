@@ -6,9 +6,11 @@ import os, secrets, threading, traceback, socket, ipaddress, warnings, logging
 warnings.filterwarnings("ignore", category=UserWarning, module="winrm")
 logger = logging.getLogger(__name__)
 
-from .database import get_all_servers, get_server, add_server, update_server, delete_server
+from .database import get_all_servers, get_server, add_server, update_server, delete_server, _conn
+import datetime
 
 main_bp = Blueprint('main', __name__)
+MASTER_AGENT_KEY = "flower-node-secret-2026" # Change this for production
 
 @main_bp.after_request
 def add_security_headers(response):
@@ -125,16 +127,22 @@ def api_servers_list():
                 with _fleet_lock:
                     fm = _fleet_metrics_cache.get(s["id"])
                     if fm:
+                        # Priority for agent status if available
+                        s_status = fm.get("status", "offline")
+                        # Handle Last Gasp / Shutdown
+                        if s_status == "shutting_down":
+                             s_status = "offline" 
+
                         s_data["metrics"] = {
                             "cpu": fm.get("cpu", 0),
+                            "ram": fm.get("ram", 0),
                             "disk": fm.get("disk", 0),
-                            "status": fm.get("status", "offline"),
-                            "source": "fleet_worker",
+                            "status": s_status,
+                            "source": fm.get("source", "fleet_worker"),
                             "used_gb": fm.get("used_gb"),
                             "total_gb": fm.get("total_gb")
                         }
                     else:
-                        # Fallback: Just mark as offline or checking
                         s_data["metrics"] = {"status": "offline", "source": "none"}
             
             g_name = s.get("group_name") or "General"
@@ -298,8 +306,18 @@ def api_connect():
         user = (data.get("user") or "").strip()
         pwd  = data.get("password", "")
 
-    if not ip or not user or not pwd:
-        return jsonify({"ok": False, "error": "Todos los campos son obligatorios"}), 400
+    if (not ip or not user or not pwd):
+        return (jsonify({'ok': False, 'error': 'Todos los campos son obligatorios'}), 400)
+    
+    # 1. FAST PRE-FLIGHT PROBE (2s Timeout)
+    # If the server is offline, we fail fast before engaging the heavy WinRM engine.
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(2.0)
+            if s.connect_ex((ip.split(':')[0], 5985)) != 0:
+                return (jsonify({'ok': False, 'error': 'Servidor inalcanzable (Puerto 5985 cerrado o IP apagada)'}), 401)
+    except Exception as e:
+        return (jsonify({'ok': False, 'error': f'Error de red: {str(e)}'}), 401)
 
     try:
         # EXPLICIT PORT 5985 FORCED
@@ -397,6 +415,46 @@ def api_disconnect():
             _sessions.pop(sid_to_remove, None)
             _metrics_cache.pop(sid_to_remove, None)
             _net_history.pop(sid_to_remove, None)
+    return jsonify({"ok": True})
+
+# ------------------------------------------------------------------
+# ACTIVE AGENT RECEPTOR
+# ------------------------------------------------------------------
+@main_bp.route("/api/agent/report", methods=["POST"])
+def agent_report():
+    data = request.json
+    api_key = request.headers.get("X-API-KEY")
+    client_ip = request.remote_addr
+
+    if not data or api_key != MASTER_AGENT_KEY:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    srv_id = data.get("server_id")
+    if not srv_id: return jsonify({"ok": False}), 400
+
+    # Validate IP matches DB
+    srv = get_server(srv_id)
+    if not srv or srv["ip"] != client_ip:
+        logger.warning(f"Agent IP mismatch or invalid ID: {client_ip} for ID {srv_id}")
+        return jsonify({"ok": False, "error": "Identity mismatch"}), 403
+
+    status = data.get("status", "online")
+    metrics = {
+        "cpu": data.get("cpu", 0),
+        "ram": data.get("ram", 0),
+        "disk": data.get("disk", 0),
+        "status": status,
+        "source": "agent",
+        "last_sync": time.time()
+    }
+
+    # Update Global Cache
+    with _fleet_lock:
+        _fleet_metrics_cache[srv_id] = metrics
+
+    # Sync to DB
+    update_server(srv_id, status=status, last_seen=datetime.datetime.now(), is_agent=1)
+    
     return jsonify({"ok": True})
 
 @main_bp.route("/api/metrics")
@@ -640,13 +698,23 @@ try {{
 # ------------------------------------------------------------------
 # Background Poller  — Streaming Mode (Ultra-Low Latency)
 # ------------------------------------------------------------------
-def _safe_float(val):
+def _safe_float(val, default=0.0):
     """Parses a float string correctly even if it uses a comma as a decimal separator."""
     try:
-        if not val or val == "0": return 0.0
-        return float(str(val).replace(',', '.'))
+        s = str(val).strip().replace(',', '.')
+        if not s or s == "0": return default
+        return float(s)
     except:
-        return 0.0
+        return default
+
+def _safe_int(val, default=0):
+    """Parses an integer safely, handling floats or empty strings."""
+    try:
+        s = str(val).strip()
+        if not s: return default
+        return int(float(s.replace(',', '.')))
+    except:
+        return default
 
 def _bg_poller(sid):
     """
@@ -718,10 +786,10 @@ def _bg_poller(sid):
                     dt = now - prev_data.get('ts', now - 1)
                     if dt <= 0: dt = 1.0
                     
-                    cpu = int(parts[0])
+                    cpu = _safe_int(parts[0])
                     free_kb = _safe_float(parts[1])
-                    procs = int(parts[2])
-                    threads = int(parts[3])
+                    procs = _safe_int(parts[2])
+                    threads = _safe_int(parts[3])
                     
                     # DISK DELTA
                     raw_disk_ticks = _safe_float(parts[4])
@@ -808,7 +876,16 @@ def _fleet_worker_loop():
             def poll_one(s):
                 srv_id = s["id"]
                 ip = s["ip"]
+                is_agent = s.get("is_agent", 0)
                 
+                # HEARTBEAT CHECK for AGENTS
+                if is_agent:
+                    with _fleet_lock:
+                        fm = _fleet_metrics_cache.get(srv_id)
+                        if fm and time.time() - fm.get("last_sync", 0) > 120:
+                             return srv_id, {"status": "offline", "source": "agent"}
+                        return srv_id, fm if fm else {"status": "offline", "source": "agent"}
+
                 # PRE-FLIGHT: Fast socket check (1s timeout)
                 try:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -829,16 +906,18 @@ def _fleet_worker_loop():
                         )
                     
                     ws = _fleet_sessions[srv_id]
-                    # Optimized NOC query: Instant CPU + Disk Space
+                    # Optimized NOC query: Instant CPU + RAM + Disk Space
                     ps = r'''
                     $ErrorActionPreference='Stop';
-                    $c = (Get-CimInstance Win32_Processor).LoadPercentage[0]; # Instant, no average
+                    $c = (Get-CimInstance Win32_Processor).LoadPercentage[0]; 
+                    $os = Get-CimInstance Win32_OperatingSystem;
+                    $ramPct = [math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100, 0);
                     $d = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'";
                     $total = [math]::Round($d.Size / 1GB, 0);
                     $free = [math]::Round($d.FreeSpace / 1GB, 0);
                     $used = $total - $free;
-                    $pct = if($total -gt 0){ [math]::Round(($used/$total)*100,0) }else{0};
-                    "$c;$pct;$used;$total"
+                    $diskPct = if($total -gt 0){ [math]::Round(($used/$total)*100,0) }else{0};
+                    "$c;$ramPct;$diskPct;$used;$total"
                     '''
                     res = ws.run_ps(ps)
                     if res.status_code == 0:
@@ -848,9 +927,10 @@ def _fleet_worker_loop():
                             return srv_id, {
                                 "status": "online",
                                 "cpu": int(parts[0]),
-                                "disk": int(parts[1]),
-                                "used_gb": int(parts[2]),
-                                "total_gb": int(parts[3]),
+                                "ram": int(parts[1]),
+                                "disk": int(parts[2]),
+                                "used_gb": int(parts[3]),
+                                "total_gb": int(parts[4]),
                                 "last_sync": time.time()
                             }
                 except Exception as e:
@@ -870,8 +950,8 @@ def _fleet_worker_loop():
         except Exception as ge:
             logger.error(f"FATAL FLEET WORKER ERROR: {ge}")
             
-        # 5. ENTERPRISE REST INTERVAL (30s)
-        time.sleep(30) 
+        # 5. ENTERPRISE REST INTERVAL (12s) - Optimized for responsiveness
+        time.sleep(12) 
 
 # Start the thread on module import
 threading.Thread(target=_fleet_worker_loop, daemon=True).start()

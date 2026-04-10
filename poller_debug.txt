@@ -4513,3 +4513,943 @@ SUCCESS SID b0694531f87042ea7147f07ed4d1ed7b parts ['4', '4414448', '94', '747',
 SUCCESS SID b0694531f87042ea7147f07ed4d1ed7b parts ['0', '4406068', '94', '743', '4825828667', '14086683648', '1204766720', '0']
 SUCCESS SID e3b2c8724b2c471098e94097fb02ea4f parts ['59', '4302124', '99', '796', '4839723800', '14088100352', '1214260224', '0']
 SUCCESS SID e3b2c8724b2c471098e94097fb02ea4f parts ['8', '4366332', '95', '762', '4839982781', '14088100352', '1217766912', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['56', '4679568', '99', '971', '879201177', '1626065408', '919026176', '33059']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['0', '4701444', '96', '862', '881600036', '1629175296', '922262016', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['2', '4704512', '96', '864', '882214686', '1629842944', '924743168', '0']
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 731, in _bg_poller
+    cpu = int(parts[0])
+ValueError: invalid literal for int() with base 10: ''
+
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['3', '4707392', '96', '859', '883955225', '1631178240', '926160896', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['4', '4701336', '96', '853', '884430149', '1631845888', '926357504', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['2', '4702632', '96', '855', '884760673', '1632513536', '926595072', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['2', '4699336', '96', '850', '885293853', '1633181184', '926906880', '0']
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 731, in _bg_poller
+    cpu = int(parts[0])
+ValueError: invalid literal for int() with base 10: ''
+
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['17', '4667500', '100', '854', '887332689', '1634541056', '927577600', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['6', '4679528', '102', '922', '888316668', '1635274240', '928016384', '3024']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['3', '4675476', '100', '900', '889363836', '1635941888', '928450048', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['1', '4677112', '100', '904', '890678239', '1636609536', '928928256', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['3', '4676492', '100', '900', '891261403', '1637277184', '929229312', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['2', '4697908', '96', '850', '891891851', '1637944832', '929567232', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['0', '4695684', '96', '846', '892481636', '1638649344', '929833472', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['3', '4699692', '96', '846', '893286849', '1639316992', '930321920', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['43', '4680512', '100', '886', '895813997', '1641315840', '930715136', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['0', '4699324', '96', '847', '896966773', '1642565120', '931051520', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['1', '4695252', '96', '856', '897395280', '1643261440', '931440640', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['1', '4697788', '96', '856', '897828662', '1643929088', '931952640', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['3', '4696832', '96', '856', '898403965', '1644596736', '932293632', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['4', '4696436', '96', '856', '898869537', '1645264384', '932568064', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['0', '4696384', '96', '848', '899495894', '1645932032', '932793344', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['8', '4697072', '96', '855', '899823634', '1646616064', '933100544', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['2', '4696812', '96', '855', '900429616', '1647349248', '933434368', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['48', '4660916', '100', '891', '902188710', '1648049664', '933899264', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['0', '4696992', '95', '855', '903031436', '1648717312', '934860288', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['5', '4700124', '95', '838', '903536518', '1649384960', '935124480', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['3', '4699432', '95', '838', '903817674', '1650052608', '935364096', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['11', '4700792', '95', '839', '904602508', '1650720256', '935737344', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['1', '4702076', '95', '839', '905339056', '1651387904', '936092672', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['6', '4697200', '95', '852', '906014373', '1652448768', '936399872', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['2', '4701568', '95', '852', '906358649', '1653116416', '936649728', '0']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['8', '4700212', '95', '849', '906810365', '1653784064', '936901632', '22265']
+SUCCESS SID d03dfb6d30dcb41028164fe9d6510c29 parts ['20', '4695980', '95', '843', '907297332', '1653816832', '937223168', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['88', '4510236', '105', '935', '908077654', '1654517248', '937946624', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['5', '4680216', '97', '854', '908474025', '1654668800', '941477376', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['0', '4687952', '97', '854', '908682299', '1654668800', '944034816', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['3', '4687272', '97', '849', '908859584', '1654668800', '945132544', '245']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['2', '4693472', '97', '844', '908902524', '1654668800', '946246656', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['0', '4697452', '97', '844', '909129382', '1654668800', '946712576', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['97', '4691512', '98', '813', '921309930', '1654697472', '947271168', '1252']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['5', '4697780', '96', '813', '921716217', '1654697472', '948176384', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['1', '4698912', '96', '813', '921768840', '1654697472', '948354560', '414']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['1', '4695872', '96', '812', '921803362', '1654697472', '948456960', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['10', '4694632', '96', '813', '922008524', '1654697472', '948713472', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['1', '4695512', '96', '814', '922375331', '1654697472', '948917248', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['3', '4696064', '96', '801', '922442430', '1654697472', '949031936', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['0', '4695952', '96', '803', '922513119', '1654697472', '949134336', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['1', '4695260', '96', '813', '922519895', '1654697472', '949199872', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['3', '4696228', '96', '808', '922869493', '1654697472', '949423104', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['0', '4695412', '96', '805', '922935909', '1654697472', '949505024', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['1', '4701392', '96', '806', '922967610', '1654697472', '949607424', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['2', '4701712', '96', '806', '923032662', '1654697472', '949737472', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['1', '4695148', '96', '807', '923081280', '1654697472', '949803008', '0']
+SUCCESS SID 6259c2068c8d906a28a377c09ec199f8 parts ['0', '4705348', '96', '807', '923236616', '1654697472', '949971968', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['38', '4853944', '86', '1082', '477813082', '789263872', '29309952', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4808928', '86', '1074', '478602554', '790210048', '31599616', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['2', '4807652', '86', '1063', '479233381', '790877696', '31976448', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['30', '4802464', '90', '1091', '479902911', '791561728', '32613376', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4812664', '86', '1055', '479937582', '791561728', '32704000', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4811820', '86', '1045', '480689598', '792229376', '33024000', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['8', '4813748', '84', '1029', '483778600', '793239040', '34023936', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4817492', '84', '1030', '484513745', '793906688', '34470912', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4812288', '84', '1029', '485127467', '794574336', '34718720', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4814104', '84', '1026', '485916680', '795274752', '35083776', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4816376', '84', '1019', '487492251', '795971072', '35643904', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4814644', '84', '1004', '487913837', '796638720', '35922944', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['11', '4811856', '84', '973', '488012721', '796708352', '36227072', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['50', '4810948', '90', '1001', '502636285', '821480960', '36667392', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['35', '4763840', '96', '1036', '524022613', '867340288', '39096832', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['50', '4752532', '97', '1021', '536651772', '890243072', '40218624', '9676']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['58', '4736052', '99', '1035', '548734094', '904027648', '40952320', '17410']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4736016', '98', '1022', '549722987', '905173504', '41489408', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4738760', '98', '1023', '550456879', '905841152', '41817600', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4740232', '98', '1019', '551829060', '906508800', '42401280', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['12', '4707172', '102', '1021', '552431724', '907192832', '42643456', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4738632', '97', '1019', '553237736', '907966976', '42917376', '483348']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['58', '4725840', '97', '1014', '557094681', '914514944', '43892736', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['19', '4720668', '97', '1016', '564290762', '921939968', '46288896', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['23', '4717460', '98', '1036', '572606958', '924521984', '49556992', '16167']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4716660', '98', '1046', '574247574', '925406720', '50074112', '5074']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4716348', '98', '1041', '575062110', '926090752', '51158528', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4716228', '98', '1036', '575840039', '926778880', '51368448', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['11', '4715836', '98', '1033', '578247290', '931456000', '55372288', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['2', '4719964', '97', '1010', '578866818', '932295680', '55774720', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['84', '4693608', '100', '1019', '579586090', '932994048', '56067072', '3259399']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4728316', '95', '976', '580718232', '935062016', '61516800', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['48', '4731420', '96', '964', '587799084', '940583936', '68188672', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['4', '4733604', '95', '945', '588456268', '941284352', '68572672', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4745764', '94', '921', '589218903', '942018560', '68917760', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4743960', '94', '923', '589791853', '942686208', '69155840', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['5', '4745620', '94', '925', '591143394', '943353856', '69675008', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4750508', '94', '922', '591730622', '944021504', '69990912', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4744880', '94', '921', '592395188', '944689152', '70172672', '38266']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['15', '4741640', '94', '920', '592486895', '944689152', '70378496', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4748348', '94', '912', '593073887', '945356800', '70719488', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4744724', '94', '905', '593879139', '946024448', '71087616', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['5', '4747488', '94', '903', '594736973', '946864128', '71296512', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4748324', '94', '898', '595327244', '947531776', '71615488', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4747376', '94', '900', '596262582', '948199424', '72050176', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4750184', '94', '901', '597015335', '948867072', '72385024', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4751756', '94', '896', '598036987', '949534720', '72902656', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['96', '4685520', '104', '984', '602328000', '952880128', '74609152', '38812']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4711416', '100', '923', '605973429', '959639040', '75516928', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4722220', '99', '909', '606648395', '960307712', '75796992', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4722936', '99', '896', '608409907', '961040896', '76446720', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4728696', '99', '894', '609015644', '961708544', '76728320', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['', '4724484', '99', '893', '609630851', '962376192', '76974592', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4728852', '99', '896', '610070788', '963043840', '77229056', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4729480', '98', '904', '612939622', '963891712', '79568896', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4730604', '98', '900', '613603909', '964559360', '79914496', '21746']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['25', '4729356', '96', '893', '616860369', '966298112', '80422400', '5085']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4739616', '95', '885', '617746939', '967121920', '80990720', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4741564', '94', '882', '618514388', '967789568', '81490944', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4739768', '94', '881', '619547006', '968645632', '81916416', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['2', '4738636', '94', '890', '620482295', '969349632', '82308096', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4742836', '93', '893', '621070794', '970017280', '82624512', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4742084', '93', '893', '621818443', '970684928', '82956800', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4740252', '93', '883', '623369125', '971352576', '83412992', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['20', '4709844', '96', '901', '624185558', '972028416', '83871744', '39511']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4746576', '92', '855', '624812160', '972696064', '84177920', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4745248', '92', '846', '625426526', '973363712', '84497920', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['4', '4746144', '92', '840', '627834141', '974084608', '85084672', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['4', '4754860', '91', '821', '628455223', '974957056', '85376000', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4760316', '91', '822', '629227196', '975706624', '85692416', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4756016', '91', '822', '629898323', '976374272', '85942784', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4754936', '91', '832', '630617197', '977115648', '86605824', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['68', '4739304', '94', '863', '631714233', '977791488', '87089664', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['6', '4763972', '90', '824', '631942828', '977791488', '87348736', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4759100', '90', '825', '632649941', '978459136', '87521280', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4760320', '90', '840', '633381854', '979171840', '87931392', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4751800', '93', '852', '635327370', '979892736', '88732160', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4757648', '93', '856', '636035359', '980560384', '89005568', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4750188', '93', '852', '636647045', '981228032', '89272320', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4752616', '93', '847', '637476803', '981895680', '89669120', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4753340', '93', '848', '639348636', '982563328', '90240512', '41563']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4746108', '93', '846', '639469732', '982563328', '90290688', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['2', '4750080', '93', '825', '640291738', '983230976', '90642944', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['2', '4753556', '93', '822', '641071170', '983931392', '90929664', '3866']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4753592', '93', '824', '642415947', '984599040', '91438592', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['2', '4760756', '93', '809', '642943283', '985266688', '91676672', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4757880', '93', '810', '643617383', '985934336', '91853312', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4753396', '93', '807', '644354689', '986601984', '92200448', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4754196', '93', '806', '645231174', '987269632', '92389376', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['21', '4757416', '93', '810', '646327783', '987937280', '92763136', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4760124', '93', '810', '647241169', '988781056', '93243904', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4753812', '93', '801', '647707698', '989448704', '93543424', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4761628', '93', '802', '648332048', '990116352', '93834752', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['', '4756408', '93', '799', '649672992', '990784000', '94231040', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4757128', '93', '801', '650608073', '991452160', '94473728', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4757588', '93', '798', '651395354', '992119808', '94654976', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4763652', '93', '796', '652140379', '992787456', '95118336', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['15', '4765488', '93', '801', '653229226', '993455104', '95488512', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4760196', '93', '794', '653949217', '994122752', '95839232', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4762592', '93', '776', '654675719', '994790400', '96114176', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4768300', '93', '774', '655294851', '995458048', '96344064', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4769396', '92', '775', '656458609', '996126208', '96870400', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4767408', '92', '787', '657259888', '996793856', '97126912', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4767508', '92', '788', '657954220', '997461504', '97392128', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4775576', '92', '788', '658660242', '998129152', '97679360', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4771468', '93', '789', '660147919', '998796800', '98196480', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4771652', '91', '789', '661091703', '999464448', '98557952', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4771444', '91', '790', '661779234', '1000132096', '98845184', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['0', '4772632', '91', '801', '662787611', '1000893952', '99156480', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['', '4774784', '91', '795', '664017247', '1001561600', '99590144', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['1', '4769328', '91', '795', '664867979', '1002229248', '99838976', '0']
+SUCCESS SID 0d671ff5956c7aa6aae220db7bac1fd1 parts ['3', '4770204', '91', '796', '665640138', '1002896896', '100163072', '0']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['100', '4681924', '102', '897', '681911581', '1011844096', '112175104', '6905']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['93', '4695592', '100', '873', '707635668', '1062757888', '115275776', '0']
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 46, in run_cmd
+    rs = Response(self.protocol.get_command_output(shell_id, command_id))
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 485, in get_command_output
+    stdout, stderr, return_code, command_done = self.get_command_output_raw(shell_id, command_id)
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 522, in get_command_output_raw
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 337, in send_message
+    return self._get_message_response_text(response)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 356, in _get_message_response_text
+    response_text = self.encryption.parse_encrypted_response(response)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 98, in parse_encrypted_response
+    msg = self._decrypt_response(response, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 136, in _decrypt_response
+    decrypted_message = self._decrypt_message(encrypted_data, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 150, in _decrypt_ntlm_message
+    message = self.session.auth.session_security.unwrap(encrypted_message, signature)  # type: ignore[union-attr]
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\requests_ntlm\requests_ntlm.py", line 33, in unwrap
+    return self._context.unwrap(data).data
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 740, in unwrap
+    self.verify(msg, signature)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 864, in verify
+    raise BadMICError(context_msg="Invalid Message integrity Check (MIC) detected")
+spnego.exceptions.BadMICError: SpnegoError (6): A token had an invalid Message Integrity Check (MIC), Context: Invalid Message integrity Check (MIC) detected
+
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 268, in send_message
+    root = ET.fromstring(ex.response_text)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\xml\etree\ElementTree.py", line 1353, in XML
+    return parser.close()
+           ~~~~~~~~~~~~^^
+xml.etree.ElementTree.ParseError: no element found: line 1, column 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 44, in run_cmd
+    shell_id = self.protocol.open_shell()
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 193, in open_shell
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 271, in send_message
+    raise ex
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 336, in send_message
+    response = self._send_message_request(session, prepared_request)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 352, in _send_message_request
+    raise WinRMTransportError("http", ex.response.status_code, response_text.decode())
+winrm.exceptions.WinRMTransportError: Bad HTTP response returned from server. Code 400
+
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['81', '4680048', '101', '928', '734035191', '1144096256', '116928512', '0']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['19', '4677188', '104', '933', '737856780', '1170639872', '129273856', '0']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['100', '4363028', '108', '932', '740473014', '1171552256', '154075136', '0']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['84', '4604060', '103', '893', '756796813', '1171937280', '218516992', '0']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['5', '4642780', '103', '876', '793682711', '1171970048', '310112768', '0']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['97', '4570240', '102', '889', '810737479', '1171970048', '360458240', '13882']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['9', '4568760', '101', '866', '834232580', '1207954432', '598185984', '0']
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 268, in send_message
+    root = ET.fromstring(ex.response_text)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\xml\etree\ElementTree.py", line 1353, in XML
+    return parser.close()
+           ~~~~~~~~~~~~^^
+xml.etree.ElementTree.ParseError: no element found: line 1, column 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 46, in run_cmd
+    rs = Response(self.protocol.get_command_output(shell_id, command_id))
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 485, in get_command_output
+    stdout, stderr, return_code, command_done = self.get_command_output_raw(shell_id, command_id)
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 522, in get_command_output_raw
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 271, in send_message
+    raise ex
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 336, in send_message
+    response = self._send_message_request(session, prepared_request)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 352, in _send_message_request
+    raise WinRMTransportError("http", ex.response.status_code, response_text.decode())
+winrm.exceptions.WinRMTransportError: Bad HTTP response returned from server. Code 400
+
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['4', '4112304', '103', '866', '839032875', '1207967744', '621550592', '0']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['1', '4172072', '103', '865', '840711341', '1208000512', '636541440', '0']
+SUCCESS SID 848b4f9fd9ccae95f3418856259d7732 parts ['100', '4758264', '96', '844', '852918495', '1208197120', '912101888', '1310']
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 46, in run_cmd
+    rs = Response(self.protocol.get_command_output(shell_id, command_id))
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 485, in get_command_output
+    stdout, stderr, return_code, command_done = self.get_command_output_raw(shell_id, command_id)
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 522, in get_command_output_raw
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 337, in send_message
+    return self._get_message_response_text(response)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 356, in _get_message_response_text
+    response_text = self.encryption.parse_encrypted_response(response)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 98, in parse_encrypted_response
+    msg = self._decrypt_response(response, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 136, in _decrypt_response
+    decrypted_message = self._decrypt_message(encrypted_data, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 150, in _decrypt_ntlm_message
+    message = self.session.auth.session_security.unwrap(encrypted_message, signature)  # type: ignore[union-attr]
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\requests_ntlm\requests_ntlm.py", line 33, in unwrap
+    return self._context.unwrap(data).data
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 740, in unwrap
+    self.verify(msg, signature)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 864, in verify
+    raise BadMICError(context_msg="Invalid Message integrity Check (MIC) detected")
+spnego.exceptions.BadMICError: SpnegoError (6): A token had an invalid Message Integrity Check (MIC), Context: Invalid Message integrity Check (MIC) detected
+
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 268, in send_message
+    root = ET.fromstring(ex.response_text)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\xml\etree\ElementTree.py", line 1353, in XML
+    return parser.close()
+           ~~~~~~~~~~~~^^
+xml.etree.ElementTree.ParseError: no element found: line 1, column 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 44, in run_cmd
+    shell_id = self.protocol.open_shell()
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 193, in open_shell
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 271, in send_message
+    raise ex
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 336, in send_message
+    response = self._send_message_request(session, prepared_request)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 352, in _send_message_request
+    raise WinRMTransportError("http", ex.response.status_code, response_text.decode())
+winrm.exceptions.WinRMTransportError: Bad HTTP response returned from server. Code 400
+
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 46, in run_cmd
+    rs = Response(self.protocol.get_command_output(shell_id, command_id))
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 485, in get_command_output
+    stdout, stderr, return_code, command_done = self.get_command_output_raw(shell_id, command_id)
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 522, in get_command_output_raw
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 337, in send_message
+    return self._get_message_response_text(response)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 356, in _get_message_response_text
+    response_text = self.encryption.parse_encrypted_response(response)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 98, in parse_encrypted_response
+    msg = self._decrypt_response(response, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 136, in _decrypt_response
+    decrypted_message = self._decrypt_message(encrypted_data, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 150, in _decrypt_ntlm_message
+    message = self.session.auth.session_security.unwrap(encrypted_message, signature)  # type: ignore[union-attr]
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\requests_ntlm\requests_ntlm.py", line 33, in unwrap
+    return self._context.unwrap(data).data
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 740, in unwrap
+    self.verify(msg, signature)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 864, in verify
+    raise BadMICError(context_msg="Invalid Message integrity Check (MIC) detected")
+spnego.exceptions.BadMICError: SpnegoError (6): A token had an invalid Message Integrity Check (MIC), Context: Invalid Message integrity Check (MIC) detected
+
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 268, in send_message
+    root = ET.fromstring(ex.response_text)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\xml\etree\ElementTree.py", line 1353, in XML
+    return parser.close()
+           ~~~~~~~~~~~~^^
+xml.etree.ElementTree.ParseError: no element found: line 1, column 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 44, in run_cmd
+    shell_id = self.protocol.open_shell()
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 193, in open_shell
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 271, in send_message
+    raise ex
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 336, in send_message
+    response = self._send_message_request(session, prepared_request)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 352, in _send_message_request
+    raise WinRMTransportError("http", ex.response.status_code, response_text.decode())
+winrm.exceptions.WinRMTransportError: Bad HTTP response returned from server. Code 400
+
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['0', '4706448', '102', '855', '856476947', '1211532800', '918212096', '37704']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['12', '4702268', '102', '853', '857099276', '1211532800', '919483904', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['0', '4708676', '102', '858', '857350064', '1211532800', '920051712', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['1', '4701148', '102', '852', '857678675', '1211532800', '920125952', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['', '4700424', '102', '848', '857744155', '1211532800', '920228864', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['1', '4702624', '102', '847', '857796756', '1211532800', '920548864', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['0', '4703900', '102', '843', '858251097', '1211532800', '920757760', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['9', '4704592', '102', '835', '858360414', '1211532800', '920930816', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['0', '4710052', '102', '830', '858494165', '1211532800', '921046016', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['16', '4699868', '105', '845', '858575740', '1211532800', '921140736', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['1', '4701776', '102', '803', '858660427', '1211532800', '921330176', '0']
+SUCCESS SID abbadf29ea1c1e4b8f0f5a4f0999059a parts ['0', '4710620', '102', '797', '859229135', '1211532800', '921570816', '0']
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 46, in run_cmd
+    rs = Response(self.protocol.get_command_output(shell_id, command_id))
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 485, in get_command_output
+    stdout, stderr, return_code, command_done = self.get_command_output_raw(shell_id, command_id)
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 522, in get_command_output_raw
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 337, in send_message
+    return self._get_message_response_text(response)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 356, in _get_message_response_text
+    response_text = self.encryption.parse_encrypted_response(response)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 98, in parse_encrypted_response
+    msg = self._decrypt_response(response, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 136, in _decrypt_response
+    decrypted_message = self._decrypt_message(encrypted_data, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 150, in _decrypt_ntlm_message
+    message = self.session.auth.session_security.unwrap(encrypted_message, signature)  # type: ignore[union-attr]
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\requests_ntlm\requests_ntlm.py", line 33, in unwrap
+    return self._context.unwrap(data).data
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 740, in unwrap
+    self.verify(msg, signature)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 864, in verify
+    raise BadMICError(context_msg="Invalid Message integrity Check (MIC) detected")
+spnego.exceptions.BadMICError: SpnegoError (6): A token had an invalid Message Integrity Check (MIC), Context: Invalid Message integrity Check (MIC) detected
+
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 268, in send_message
+    root = ET.fromstring(ex.response_text)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\xml\etree\ElementTree.py", line 1353, in XML
+    return parser.close()
+           ~~~~~~~~~~~~^^
+xml.etree.ElementTree.ParseError: no element found: line 1, column 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 44, in run_cmd
+    shell_id = self.protocol.open_shell()
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 193, in open_shell
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 271, in send_message
+    raise ex
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 336, in send_message
+    response = self._send_message_request(session, prepared_request)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 352, in _send_message_request
+    raise WinRMTransportError("http", ex.response.status_code, response_text.decode())
+winrm.exceptions.WinRMTransportError: Bad HTTP response returned from server. Code 400
+
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4687248', '106', '824', '860473185', '1211581952', '925529600', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4686628', '106', '823', '860908871', '1211581952', '927408128', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4688588', '105', '817', '861221028', '1211581952', '927585792', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4690236', '105', '811', '861331735', '1211581952', '927762432', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4693044', '105', '812', '861370928', '1211581952', '927791616', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['21', '4653356', '109', '853', '861410903', '1211581952', '927996928', '39626']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4690088', '105', '810', '861742498', '1211581952', '928244736', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4689880', '105', '814', '861855622', '1211581952', '928310784', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4688112', '105', '812', '862053433', '1211581952', '928405504', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4693680', '105', '795', '862150188', '1211581952', '928580096', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4692096', '105', '791', '862238432', '1211581952', '928674304', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4689152', '105', '793', '862960212', '1211581952', '928784896', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4695016', '105', '790', '863069272', '1211581952', '928920576', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['74', '4668012', '109', '822', '863192704', '1211581952', '929080832', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4687476', '105', '780', '863360548', '1211581952', '929209856', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4692148', '105', '777', '863753911', '1211581952', '929402880', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4692896', '105', '779', '863799792', '1211581952', '929561600', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4695296', '105', '778', '863996678', '1211581952', '929730048', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4693992', '105', '779', '864219143', '1211581952', '929824768', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['13', '4685740', '105', '782', '868447582', '1213470208', '930110464', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4689088', '105', '781', '868644268', '1213470208', '930287104', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4693144', '105', '779', '868680944', '1213470208', '930430976', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['7', '4692444', '105', '779', '868830445', '1213470208', '930529792', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4687708', '105', '780', '869086583', '1213470208', '930784768', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4690504', '105', '779', '869541302', '1213470208', '930976256', '0']
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 46, in run_cmd
+    rs = Response(self.protocol.get_command_output(shell_id, command_id))
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 485, in get_command_output
+    stdout, stderr, return_code, command_done = self.get_command_output_raw(shell_id, command_id)
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 522, in get_command_output_raw
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 337, in send_message
+    return self._get_message_response_text(response)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 356, in _get_message_response_text
+    response_text = self.encryption.parse_encrypted_response(response)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 98, in parse_encrypted_response
+    msg = self._decrypt_response(response, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 136, in _decrypt_response
+    decrypted_message = self._decrypt_message(encrypted_data, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 150, in _decrypt_ntlm_message
+    message = self.session.auth.session_security.unwrap(encrypted_message, signature)  # type: ignore[union-attr]
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\requests_ntlm\requests_ntlm.py", line 33, in unwrap
+    return self._context.unwrap(data).data
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 740, in unwrap
+    self.verify(msg, signature)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 864, in verify
+    raise BadMICError(context_msg="Invalid Message integrity Check (MIC) detected")
+spnego.exceptions.BadMICError: SpnegoError (6): A token had an invalid Message Integrity Check (MIC), Context: Invalid Message integrity Check (MIC) detected
+
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 268, in send_message
+    root = ET.fromstring(ex.response_text)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\xml\etree\ElementTree.py", line 1353, in XML
+    return parser.close()
+           ~~~~~~~~~~~~^^
+xml.etree.ElementTree.ParseError: no element found: line 1, column 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 44, in run_cmd
+    shell_id = self.protocol.open_shell()
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 193, in open_shell
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 271, in send_message
+    raise ex
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 336, in send_message
+    response = self._send_message_request(session, prepared_request)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 352, in _send_message_request
+    raise WinRMTransportError("http", ex.response.status_code, response_text.decode())
+winrm.exceptions.WinRMTransportError: Bad HTTP response returned from server. Code 400
+
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4677864', '107', '781', '869650716', '1213470208', '931183616', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4678364', '107', '780', '869814808', '1213470208', '931379200', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['29', '4678040', '107', '783', '870536630', '1213470208', '932166656', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4680596', '107', '783', '870634896', '1213502976', '932300288', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['69', '4639592', '111', '820', '870679666', '1213502976', '932408832', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4675936', '107', '780', '870835196', '1213502976', '932569088', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4677824', '106', '782', '870892450', '1213502976', '932690432', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4676976', '106', '778', '871362218', '1213502976', '932872704', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4677996', '106', '777', '871393720', '1213502976', '932963328', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4676464', '106', '779', '871429811', '1213502976', '933139968', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['5', '4680548', '106', '780', '871488759', '1213502976', '933210112', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4678544', '106', '780', '871727731', '1213502976', '933485568', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4683704', '106', '784', '871806572', '1213502976', '933637632', '34880']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4672120', '106', '784', '871998812', '1213502976', '933769728', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4676724', '106', '775', '872042731', '1213502976', '933820928', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4684196', '106', '774', '872615557', '1213502976', '934030848', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4682428', '106', '775', '872989119', '1213502976', '934228480', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4678932', '106', '772', '873021151', '1213502976', '934284800', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4678156', '106', '765', '873249569', '1213502976', '934395904', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4679608', '106', '771', '873426182', '1213535744', '934539776', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4680036', '106', '772', '873685521', '1213535744', '934742528', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['64', '4645808', '110', '807', '873806116', '1213535744', '934984704', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4680600', '106', '773', '874128362', '1213535744', '935069184', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4684816', '106', '768', '874152591', '1213535744', '935110656', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4682488', '106', '771', '874220151', '1213535744', '935205376', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4686888', '106', '776', '875197550', '1213535744', '936187904', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4679432', '106', '779', '875281632', '1213535744', '936286720', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4689980', '106', '835', '875526877', '1213732352', '936463360', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4666008', '108', '835', '876278245', '1213732352', '936804864', '36947']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['9', '4654004', '108', '831', '876863150', '1213732352', '937027072', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4660020', '108', '830', '877211569', '1213732352', '937203712', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['', '4660292', '108', '831', '877263683', '1213732352', '937351680', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4656472', '108', '832', '877311982', '1213732352', '937405440', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4659968', '108', '832', '877600299', '1213732352', '937578496', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4664020', '108', '827', '877759377', '1213732352', '937738752', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4659872', '108', '831', '877796332', '1213732352', '937748992', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4667404', '108', '832', '877997213', '1213732352', '937983488', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4660996', '108', '831', '878303026', '1213732352', '938170368', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['14', '4626988', '112', '868', '878566401', '1213732352', '938314240', '39956']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4661752', '108', '832', '878611447', '1213732352', '938413056', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4660648', '108', '833', '878666636', '1213732352', '938503680', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4659676', '108', '833', '878719364', '1213732352', '938741760', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4659368', '108', '835', '878730164', '1213732352', '938750464', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['', '4659820', '108', '832', '879414176', '1213732352', '938956800', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4665420', '108', '834', '879455835', '1213732352', '938998272', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4659232', '108', '830', '879549717', '1213732352', '939204608', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4664224', '108', '834', '879655697', '1213732352', '939393536', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['41', '4638756', '112', '869', '879891425', '1213732352', '939550208', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4659632', '108', '827', '879948931', '1213732352', '939710464', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4658864', '108', '833', '879976700', '1213732352', '939801088', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4657560', '108', '833', '880044077', '1213732352', '939985920', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4658368', '108', '831', '880080523', '1213732352', '940006912', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4659900', '108', '828', '880549509', '1213732352', '940188672', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4664512', '108', '810', '880605331', '1213732352', '940340736', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4662704', '108', '807', '880664724', '1213732352', '940472832', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4665664', '108', '807', '880728912', '1213732352', '940620800', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['12', '4627448', '112', '808', '881083544', '1213732352', '940776960', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4663264', '108', '796', '881173159', '1213732352', '940904960', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4663244', '108', '798', '881201604', '1213732352', '941011968', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4665236', '108', '797', '881236004', '1213732352', '941086208', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4664496', '108', '824', '881344922', '1213797376', '941164544', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4666024', '108', '832', '881661191', '1213854720', '941430272', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4664860', '108', '830', '881707218', '1213854720', '941549056', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4664192', '108', '833', '881756382', '1213854720', '941611008', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4665520', '108', '824', '881820667', '1213854720', '941791744', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['65', '4610236', '117', '924', '885507398', '1222200320', '942013440', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4625696', '113', '904', '892255873', '1233884672', '942432256', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4630424', '113', '908', '892420508', '1234183680', '942486016', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['5', '4626900', '113', '905', '892872653', '1235189248', '942584832', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['6', '4627496', '113', '905', '893096679', '1235771392', '942622208', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['97', '4622944', '123', '1090', '913053549', '1261442048', '944168448', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['87', '4539776', '126', '1186', '952148600', '1296878080', '948113408', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['88', '4446336', '131', '1276', '1025145245', '1351956480', '948517376', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['77', '4398880', '129', '1301', '1052431191', '1394617344', '948595712', '13871']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['100', '4265036', '135', '1446', '1113219400', '1469225984', '951426048', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['99', '4202832', '134', '1452', '1131187834', '1485480448', '951733760', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['4', '4157352', '135', '1419', '1146088128', '1499629568', '953179136', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['45', '4134564', '138', '1455', '1149790903', '1503449600', '955278848', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4132104', '138', '1464', '1155716464', '1509830144', '956300288', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['6', '4128204', '138', '1456', '1155786084', '1509862912', '956448768', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4133132', '137', '1444', '1156502333', '1510031872', '957385728', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['43', '4115336', '141', '1484', '1156607509', '1510031872', '957554176', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['6', '4127004', '137', '1410', '1157679659', '1510031872', '958109184', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4139624', '135', '1404', '1157788210', '1510072832', '958257152', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['7', '4146828', '135', '1389', '1157873692', '1510072832', '958409216', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['31', '4134928', '135', '1379', '1159148224', '1512693248', '958620672', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4142572', '134', '1334', '1160359929', '1512787456', '959824384', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4149048', '134', '1285', '1160460364', '1512787456', '959996928', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4150208', '134', '1279', '1160569742', '1512787456', '960177152', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4149780', '134', '1271', '1160637218', '1512787456', '960296448', '39964']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4145308', '134', '1262', '1160652462', '1512787456', '960313344', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4149680', '134', '1243', '1161146012', '1512787456', '960699392', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4150792', '134', '1249', '1161251195', '1512787456', '960835072', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4151836', '134', '1253', '1161316955', '1512787456', '960959488', '391']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4156272', '134', '1254', '1161372950', '1512787456', '961107456', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4158252', '134', '1249', '1161428782', '1512787456', '961177600', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4151488', '134', '1251', '1161670146', '1512787456', '961339392', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4154356', '133', '1239', '1161748658', '1512787456', '961434112', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4163332', '133', '1236', '1161844706', '1512803840', '961602560', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['56', '4131800', '137', '1272', '1161883171', '1512803840', '961635840', '15294']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4165352', '133', '1218', '1161971234', '1512807936', '961787904', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4153612', '133', '1221', '1163106631', '1514044928', '962038784', '10843']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['75', '4157792', '133', '1217', '1163188800', '1514044928', '962293248', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4154884', '133', '1217', '1164317706', '1515451392', '962451968', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4162584', '133', '1217', '1164345581', '1515451392', '962534400', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['6', '4159020', '133', '1171', '1164629152', '1515451392', '962780672', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4165564', '133', '1122', '1164664728', '1515451392', '962834432', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['11', '4148992', '137', '1157', '1164714894', '1515451392', '962929152', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4171268', '133', '1118', '1165686826', '1515705344', '968985600', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4170508', '133', '1118', '1165818051', '1515705344', '969123840', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4166868', '133', '1108', '1166289466', '1515713536', '969298432', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4167144', '133', '1101', '1166323266', '1515713536', '969376768', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4164496', '133', '1105', '1166375053', '1515713536', '969512448', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4165172', '133', '1103', '1166474919', '1515713536', '969562112', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4167188', '133', '1102', '1166717943', '1515713536', '969788928', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4165556', '133', '1103', '1166745717', '1515713536', '969863168', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['26', '4129760', '137', '1142', '1166808574', '1515713536', '969940992', '37598']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4165440', '133', '1102', '1166942756', '1515754496', '970062336', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4166156', '133', '1097', '1167060643', '1515754496', '970292224', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4164216', '133', '1098', '1167435651', '1515754496', '970522112', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4174564', '133', '1100', '1167486034', '1515758592', '970534912', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4173408', '132', '1100', '1167761542', '1515813888', '970855424', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4176956', '132', '1101', '1167802459', '1515813888', '970909184', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4174640', '132', '1074', '1168008631', '1515813888', '971085824', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4184588', '132', '1058', '1168097636', '1515813888', '971268096', '21228']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['6', '4178428', '132', '1058', '1168203742', '1515813888', '971346432', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4175596', '132', '1063', '1168353792', '1515813888', '971482624', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4177168', '132', '1057', '1168387587', '1515813888', '971556864', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4184344', '132', '1051', '1168582248', '1515813888', '971757568', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4188224', '132', '1054', '1168708125', '1515813888', '971876864', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['', '4179904', '132', '1053', '1168831070', '1515813888', '972053504', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4180764', '132', '1054', '1168850882', '1515813888', '972062208', '0']
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 46, in run_cmd
+    rs = Response(self.protocol.get_command_output(shell_id, command_id))
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 485, in get_command_output
+    stdout, stderr, return_code, command_done = self.get_command_output_raw(shell_id, command_id)
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 522, in get_command_output_raw
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 337, in send_message
+    return self._get_message_response_text(response)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 356, in _get_message_response_text
+    response_text = self.encryption.parse_encrypted_response(response)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 98, in parse_encrypted_response
+    msg = self._decrypt_response(response, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 136, in _decrypt_response
+    decrypted_message = self._decrypt_message(encrypted_data, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 150, in _decrypt_ntlm_message
+    message = self.session.auth.session_security.unwrap(encrypted_message, signature)  # type: ignore[union-attr]
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\requests_ntlm\requests_ntlm.py", line 33, in unwrap
+    return self._context.unwrap(data).data
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 740, in unwrap
+    self.verify(msg, signature)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 864, in verify
+    raise BadMICError(context_msg="Invalid Message integrity Check (MIC) detected")
+spnego.exceptions.BadMICError: SpnegoError (6): A token had an invalid Message Integrity Check (MIC), Context: Invalid Message integrity Check (MIC) detected
+
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 268, in send_message
+    root = ET.fromstring(ex.response_text)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\xml\etree\ElementTree.py", line 1353, in XML
+    return parser.close()
+           ~~~~~~~~~~~~^^
+xml.etree.ElementTree.ParseError: no element found: line 1, column 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 44, in run_cmd
+    shell_id = self.protocol.open_shell()
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 193, in open_shell
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 271, in send_message
+    raise ex
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 336, in send_message
+    response = self._send_message_request(session, prepared_request)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 352, in _send_message_request
+    raise WinRMTransportError("http", ex.response.status_code, response_text.decode())
+winrm.exceptions.WinRMTransportError: Bad HTTP response returned from server. Code 400
+
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['82', '4147640', '138', '1108', '1169236902', '1515813888', '972420096', '14880']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4174824', '134', '1065', '1169321726', '1515813888', '972543488', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4170568', '134', '1067', '1169667829', '1515813888', '972813824', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4176320', '134', '1062', '1169710966', '1515813888', '972863488', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4171696', '134', '1056', '1169754732', '1515813888', '973004288', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4169656', '134', '1045', '1169863159', '1515813888', '973127680', '13980']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4164608', '134', '1036', '1169965287', '1515813888', '973206528', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4171624', '134', '1042', '1170295693', '1515813888', '973453312', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4174132', '134', '1042', '1170438575', '1515813888', '973617664', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4173064', '134', '1037', '1170486539', '1515813888', '973655040', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4177228', '134', '1038', '1170565504', '1515813888', '973737472', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['6', '4180036', '134', '1035', '1171144709', '1515813888', '973993472', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4181328', '133', '1035', '1171333691', '1515936768', '974065664', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['0', '4180760', '133', '1033', '1171392124', '1515969536', '974168576', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['77', '4153392', '137', '1073', '1171456814', '1515969536', '974238720', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['3', '4175844', '133', '1037', '1171556336', '1515969536', '974500352', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['2', '4179520', '133', '1035', '1171753757', '1515969536', '974675968', '0']
+SUCCESS SID 59d6f5d02a9802cdfed2c98e92c8a1e6 parts ['1', '4184940', '133', '1036', '1171841742', '1515969536', '974844416', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['66', '4111248', '137', '1095', '1173128264', '1516719104', '975656448', '0']
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 46, in run_cmd
+    rs = Response(self.protocol.get_command_output(shell_id, command_id))
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 485, in get_command_output
+    stdout, stderr, return_code, command_done = self.get_command_output_raw(shell_id, command_id)
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 522, in get_command_output_raw
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 337, in send_message
+    return self._get_message_response_text(response)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 356, in _get_message_response_text
+    response_text = self.encryption.parse_encrypted_response(response)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 98, in parse_encrypted_response
+    msg = self._decrypt_response(response, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 136, in _decrypt_response
+    decrypted_message = self._decrypt_message(encrypted_data, host)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\encryption.py", line 150, in _decrypt_ntlm_message
+    message = self.session.auth.session_security.unwrap(encrypted_message, signature)  # type: ignore[union-attr]
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\requests_ntlm\requests_ntlm.py", line 33, in unwrap
+    return self._context.unwrap(data).data
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 740, in unwrap
+    self.verify(msg, signature)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\spnego\_ntlm.py", line 864, in verify
+    raise BadMICError(context_msg="Invalid Message integrity Check (MIC) detected")
+spnego.exceptions.BadMICError: SpnegoError (6): A token had an invalid Message Integrity Check (MIC), Context: Invalid Message integrity Check (MIC) detected
+
+CRITICAL: Traceback (most recent call last):
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 268, in send_message
+    root = ET.fromstring(ex.response_text)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\xml\etree\ElementTree.py", line 1353, in XML
+    return parser.close()
+           ~~~~~~~~~~~~^^
+xml.etree.ElementTree.ParseError: no element found: line 1, column 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\german.pueyo\Desktop\proyecto\app\routes.py", line 722, in _bg_poller
+    res = ws.run_ps(ps)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 57, in run_ps
+    rs = self.run_cmd("powershell -encodedcommand {0}".format(encoded_ps))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\__init__.py", line 44, in run_cmd
+    shell_id = self.protocol.open_shell()
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 193, in open_shell
+    res = self.send_message(xmltodict.unparse(req))
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 271, in send_message
+    raise ex
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\protocol.py", line 263, in send_message
+    resp = self.transport.send_message(message)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 336, in send_message
+    response = self._send_message_request(session, prepared_request)
+  File "C:\Users\german.pueyo\AppData\Local\Programs\Python\Python314\Lib\site-packages\winrm\transport.py", line 352, in _send_message_request
+    raise WinRMTransportError("http", ex.response.status_code, response_text.decode())
+winrm.exceptions.WinRMTransportError: Bad HTTP response returned from server. Code 400
+
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4169496', '136', '1086', '1174280359', '1517649408', '980876800', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['13', '4158188', '136', '1118', '1177840955', '1522181120', '981135360', '13885']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['', '4128332', '138', '1160', '1186575209', '1528834560', '982178304', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['27', '4088996', '140', '1160', '1192560798', '1531755008', '983368704', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['26', '4098580', '137', '1140', '1198072439', '1536502272', '984015872', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['32', '4136672', '137', '1131', '1201365662', '1539292672', '984880128', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['39', '4135264', '138', '1140', '1218844515', '1540087808', '988017152', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4174588', '136', '1106', '1219391087', '1540431872', '988445184', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['6', '4185008', '133', '1098', '1219602112', '1540583424', '988474368', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['21', '4184132', '134', '1087', '1221713117', '1541058560', '991452672', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['11', '4196044', '134', '1087', '1224258472', '1541058560', '993363968', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['15', '4189376', '134', '1083', '1225481035', '1541058560', '995076608', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['33', '4190576', '136', '1098', '1228130545', '1541083136', '997630976', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['39', '4189796', '134', '1075', '1241904671', '1541083136', '1004767232', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['19', '4198884', '134', '1072', '1242859796', '1541099520', '1006430720', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['3', '4204516', '134', '1072', '1243771405', '1541099520', '1007425536', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['8', '4198732', '134', '1060', '1245209095', '1541099520', '1008413696', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['5', '4207700', '133', '1056', '1245524771', '1541099520', '1009029632', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4208364', '133', '1057', '1245917754', '1541132288', '1009679360', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4209688', '133', '1049', '1246294012', '1541132288', '1010269696', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['22', '4173888', '137', '1052', '1248359932', '1541710336', '1012679168', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['17', '4218172', '133', '1050', '1252211731', '1555226624', '1012803072', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['0', '4217596', '132', '1043', '1254726974', '1561550848', '1013292544', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4214056', '132', '1006', '1254763016', '1561550848', '1013379072', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4220872', '132', '992', '1254832004', '1561550848', '1013408256', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4214204', '132', '986', '1255020207', '1561550848', '1013619712', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['5', '4221912', '132', '991', '1255905625', '1561550848', '1014010880', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['0', '4217852', '132', '978', '1255958356', '1561550848', '1014113792', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['81', '4188268', '136', '1021', '1256052869', '1561550848', '1014265856', '14886']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4218820', '132', '981', '1256150826', '1561550848', '1014459392', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['0', '4218528', '132', '980', '1256398418', '1561550848', '1014628864', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['3', '4213188', '132', '983', '1256726663', '1561550848', '1014794240', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['5', '4217176', '132', '980', '1256826731', '1561550848', '1014938112', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['4', '4215628', '132', '989', '1256937994', '1561550848', '1015073792', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4217288', '132', '988', '1257036523', '1561550848', '1015246336', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4220776', '132', '988', '1257392483', '1561550848', '1015341056', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4213572', '132', '988', '1257431941', '1561550848', '1015452160', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['9', '4185408', '136', '995', '1257518538', '1561550848', '1015573504', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['', '4213996', '132', '991', '1257657893', '1561550848', '1015785984', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['0', '4214300', '132', '989', '1258048390', '1561550848', '1016027648', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4219160', '132', '987', '1258095493', '1561550848', '1016073216', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['0', '4216136', '132', '972', '1258201595', '1561550848', '1016215040', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['0', '4221272', '132', '973', '1258263352', '1561550848', '1016342528', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4217744', '132', '968', '1258303332', '1561550848', '1016424960', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4221564', '132', '972', '1258672818', '1561550848', '1016640512', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['0', '4216996', '132', '989', '1258734575', '1561550848', '1016759808', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['0', '4220340', '132', '966', '1258863392', '1561550848', '1016939008', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4219544', '132', '968', '1258894255', '1561550848', '1017013248', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4217920', '132', '968', '1259220217', '1561550848', '1017239040', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4224740', '132', '966', '1259299839', '1561550848', '1017317376', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['8', '4223732', '131', '965', '1259365167', '1561550848', '1017428480', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4225880', '131', '965', '1259418068', '1561550848', '1017493504', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['0', '4225048', '131', '973', '1259504331', '1561550848', '1017645568', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4219152', '131', '974', '1260283265', '1561550848', '1017941504', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['65', '4187700', '135', '1018', '1260444231', '1561579520', '1018118144', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4219020', '131', '985', '1260933019', '1561579520', '1018360320', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4220596', '131', '1001', '1261090030', '1561608192', '1018532864', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['4', '4225932', '131', '1008', '1261221194', '1561608192', '1018731008', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['3', '4223532', '131', '1006', '1261265008', '1561608192', '1018752000', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['2', '4220144', '131', '1014', '1261457073', '1561649152', '1018930176', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['3', '4218604', '132', '1040', '1261673829', '1561666048', '1019057152', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['17', '4202468', '133', '1067', '1262554911', '1561698816', '1019627008', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['1', '4197432', '133', '1068', '1262602663', '1561698816', '1019701248', '0']
+SUCCESS SID 4a4a1a27f125012eb1d404030ac2dbe1 parts ['7', '4165488', '137', '1070', '1262781707', '1561838080', '1019877376', '0']
+SUCCESS SID 77cfff68f1ecfa39723ae5a2bdb8477b parts ['43', '4131804', '139', '1131', '1263429828', '1561838080', '1022738432', '0']
+SUCCESS SID 77cfff68f1ecfa39723ae5a2bdb8477b parts ['1', '4181248', '135', '1090', '1263659877', '1561838080', '1023959040', '0']
+SUCCESS SID 77cfff68f1ecfa39723ae5a2bdb8477b parts ['1', '4185612', '135', '1098', '1263955966', '1561838080', '1025159168', '0']
+SUCCESS SID 77cfff68f1ecfa39723ae5a2bdb8477b parts ['2', '4177712', '135', '1098', '1264706975', '1561838080', '1026775040', '0']
+SUCCESS SID a12c72316968b1a13ea05de6ce41e3a9 parts ['41', '4200388', '135', '1065', '1340518808', '1565416960', '1068914688', '0']
+SUCCESS SID a12c72316968b1a13ea05de6ce41e3a9 parts ['0', '4196408', '136', '1032', '1340629299', '1565416960', '1070012416', '0']
+SUCCESS SID a12c72316968b1a13ea05de6ce41e3a9 parts ['33', '4402456', '136', '1029', '1370103237', '1565416960', '1303835136', '0']
+SUCCESS SID a12c72316968b1a13ea05de6ce41e3a9 parts ['1', '4378784', '136', '1026', '1370278899', '1565416960', '1304032256', '0']
+SUCCESS SID d8e6f90df16b08fa8ff318e500230437 parts ['82', '4117084', '133', '1195', '1876705314', '2089622528', '1518406144', '0']
+SUCCESS SID d8e6f90df16b08fa8ff318e500230437 parts ['85', '4160804', '129', '1193', '1877256440', '2089622528', '1518596096', '0']
+SUCCESS SID a2b95ed366d91ceac9cf373998c9924d parts ['89', '3964716', '131', '1327', '2502225759', '2663271424', '1874077184', '0']
