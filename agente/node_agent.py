@@ -7,9 +7,9 @@ import sys
 import logging
 
 # --- CONFIGURACIÓN DEL AGENTE ---
-SERVER_URL = "http://localhost:5000" # Cambia esto por la IP del servidor central
+SERVER_URL = "http://192.168.56.1:5000" # Cambia esto por la IP del servidor central
 API_KEY = "flower-node-secret-2026"
-SERVER_ID = 1 # IMPORTANTE: Debe coincidir con el ID del servidor en la base de datos central
+SERVER_ID = 2 # IMPORTANTE: Debe coincidir con el ID del servidor en la base de datos central
 # --------------------------------
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -30,7 +30,7 @@ class FlowerNodeAgent:
         """Captura métricas locales usando psutil."""
         try:
             return {
-                "cpu": psutil.cpu_percentage(interval=1),
+                "cpu": psutil.cpu_percent(interval=1),
                 "ram": psutil.virtual_memory().percent,
                 "disk": psutil.disk_usage('C:').percent
             }

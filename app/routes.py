@@ -1,6 +1,6 @@
 from flask import render_template, request, jsonify, session, send_from_directory, current_app, Blueprint
 import winrm
-import os, secrets, threading, traceback, socket, ipaddress, warnings, logging
+import os, secrets, threading, traceback, socket, ipaddress, warnings, logging, time
 
 # Suppress PyWinRM CLIXML UserWarnings that pollute the terminal in Spanish Windows
 warnings.filterwarnings("ignore", category=UserWarning, module="winrm")

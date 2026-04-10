@@ -5,6 +5,13 @@
    ======================================================== */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap');
 
+@font-face {
+  font-family: 'Boxcutter';
+  src: url('/static/fonts/boxcutter-bold-webfont.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
 
 
 :root {
@@ -39,7 +46,7 @@
 html { font-size: 15px; }
 
 body {
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'Boxcutter', 'DM Sans', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
