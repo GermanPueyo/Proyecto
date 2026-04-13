@@ -1,12 +1,12 @@
 from flask import render_template, request, jsonify, session, send_from_directory, current_app, Blueprint
 import winrm
-import os, secrets, threading, traceback, socket, ipaddress, warnings, logging, time
+import os, secrets, threading, traceback, socket, ipaddress, warnings, logging, time, json, queue
 
 # Suppress PyWinRM CLIXML UserWarnings that pollute the terminal in Spanish Windows
 warnings.filterwarnings("ignore", category=UserWarning, module="winrm")
 logger = logging.getLogger(__name__)
 
-from .database import get_all_servers, get_server, add_server, update_server, delete_server, _conn
+from .database import get_all_servers, get_server, add_server, update_server, delete_server, _conn, add_alert_log, get_alert_logs, resolve_alert_log
 import datetime
 
 main_bp = Blueprint('main', __name__)
@@ -28,6 +28,16 @@ _sessions = {}
 _sessions_lock = threading.Lock()
 _metrics_cache = {}
 _bg_threads = {}
+
+# SSE Alert Broadcast System
+_alert_queues = []
+_alert_queues_lock = threading.Lock()
+
+def broadcast_alert(data):
+    """Pushes a new alert to all connected SSE clients."""
+    with _alert_queues_lock:
+        for q in _alert_queues:
+            q.put(data)
 _net_history = {} # sid -> {'rx': val, 'tx': val, 'time': float}
 
 # NEW: Global Fleet Cache for NOC View
@@ -125,7 +135,8 @@ def api_servers_list():
             else:
                 # Case B: Fleet Background Worker cache
                 with _fleet_lock:
-                    fm = _fleet_metrics_cache.get(s["id"])
+                    srv_id_str = str(s["id"])
+                    fm = _fleet_metrics_cache.get(srv_id_str)
                     if fm:
                         # Priority for agent status if available
                         s_status = fm.get("status", "offline")
@@ -154,7 +165,8 @@ def api_servers_list():
         g["servers"].sort(key=lambda x: (0 if x["metrics"]["status"] == "online" else 1, x["position"], x["alias"]))
 
     # Return groups as a sorted list
-    sorted_groups = sorted(result_groups.values(), key=lambda x: (x["position"], x["name"]))
+    # Return groups as a sorted list (Strictly by position)
+    sorted_groups = sorted(result_groups.values(), key=lambda x: x["position"])
     return jsonify({"ok": True, "groups": sorted_groups})
 
 # ------------------------------------------------------------------
@@ -196,8 +208,9 @@ def api_groups_reorder():
     if not order: return jsonify({"ok": False}), 400
     
     with _conn() as c:
-        for item in order:
-            c.execute("UPDATE groups SET position=? WHERE id=?", (item['position'], item['id']))
+        with c.cursor() as cur:
+            for item in order:
+                cur.execute("UPDATE groups SET position=%s WHERE id=%s", (item['position'], item['id']))
         c.commit()
     return jsonify({"ok": True})
 
@@ -432,10 +445,17 @@ def agent_report():
     srv_id = data.get("server_id")
     if not srv_id: return jsonify({"ok": False}), 400
 
-    # Validate IP matches DB
+    # Rate Limiting: Prevent agents from spamming more than once per second
+    srv_id_str = str(srv_id)
+    with _fleet_lock:
+        last_fm = _fleet_metrics_cache.get(srv_id_str)
+        if last_fm and (time.time() - last_fm.get("last_sync", 0)) < 1.0:
+            return jsonify({"ok": True, "note": "rate_limited"}), 200
+
+    # Strict Identity Validation
     srv = get_server(srv_id)
     if not srv or srv["ip"] != client_ip:
-        logger.warning(f"Agent IP mismatch or invalid ID: {client_ip} for ID {srv_id}")
+        logger.warning(f"SECURITY ALERT: Identity mismatch for agent {srv_id}. Expected {srv.get('ip')}, got {client_ip}")
         return jsonify({"ok": False, "error": "Identity mismatch"}), 403
 
     status = data.get("status", "online")
@@ -449,13 +469,82 @@ def agent_report():
     }
 
     # Update Global Cache
+    srv_id_str = str(srv_id)
     with _fleet_lock:
-        _fleet_metrics_cache[srv_id] = metrics
+        _fleet_metrics_cache[srv_id_str] = metrics
+
+    # --- SSE REAL-TIME TRIGGER & PERSISTENT LOGGING ---
+    # Smart Logging: Identify when a crisis starts and ends
+    # We consolidate oscillations (80 -> 95 -> 81) into a single incident
+    for key in ["cpu", "ram", "disk"]:
+        val = metrics.get(key, 0)
+        if val >= 80:
+            # Persistent Log: Start/Keep Active (Captures the highest value seen)
+            add_alert_log(srv_id, key.upper(), val)
+        else:
+            # If it was active and now is under 80%, resolve it immediately
+            resolve_alert_log(srv_id, key.upper())
+
+    # Broadcast to all UI clients (Dashboard will refresh and remove/add alerts instantly)
+    broadcast_alert({
+        "type": "agent_update",
+        "server_id": srv_id,
+        "metrics": metrics
+    })
+
+    if status == "shutting_down":
+        add_alert_log(srv_id, "STATUS", 0)
+        broadcast_alert({
+            "type": "agent_update",
+            "server_id": srv_id,
+            "metrics": metrics
+        })
 
     # Sync to DB
-    update_server(srv_id, status=status, last_seen=datetime.datetime.now(), is_agent=1)
+    update_server(srv_id, status=status, last_seen=datetime.datetime.now(), is_agent=True)
     
     return jsonify({"ok": True})
+
+@main_bp.route('/api/logs', methods=['GET'])
+def api_get_logs():
+    """Returns the historical alert log entries."""
+    limit = request.args.get('limit', 100, type=int)
+    from .database import get_alert_logs
+    return jsonify(get_alert_logs(limit))
+
+@main_bp.route('/api/logs', methods=['DELETE'])
+def api_delete_all_logs():
+    """Wipes the entire history."""
+    from .database import clear_all_logs
+    clear_all_logs()
+    return jsonify({"ok": True})
+
+@main_bp.route('/api/logs/<int:log_id>', methods=['DELETE'])
+def api_delete_log(log_id):
+    """Deletes a single log entry."""
+    from .database import delete_alert_log
+    delete_alert_log(log_id)
+    return jsonify({"ok": True})
+
+@main_bp.route("/api/alerts/stream")
+def alerts_stream():
+    """SSE Endpoint that keeps a channel open with the Dashboard."""
+    def event_stream():
+        q = queue.Queue()
+        with _alert_queues_lock:
+            _alert_queues.append(q)
+        try:
+            # Send initial keep-alive
+            yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+            while True:
+                # Wait for an alert to broadcast
+                alert_data = q.get()
+                yield f"data: {json.dumps(alert_data)}\n\n"
+        except GeneratorExit:
+            with _alert_queues_lock:
+                _alert_queues.remove(q)
+
+    return current_app.response_class(event_stream(), mimetype="text/event-stream")
 
 @main_bp.route("/api/metrics")
 def api_metrics():
@@ -855,22 +944,33 @@ _fleet_sessions = {} # server_id -> Session object (persistent)
 
 def _fleet_worker_loop():
     """Enterprise-grade concurrent worker for high-scale monitoring (40+ servers)."""
-    from .database import decrypt_password, _conn
+    from .database import decrypt_password, _conn, purge_old_logs
+    import psycopg2.extras
     from concurrent.futures import ThreadPoolExecutor
     import time
 
     logger.info("🚀 GLOBAL FLEET WORKER: CONCURRENCY MODE ACTIVE")
     
+    # Track the last time we did a heavy metrics poll (WinRM)
+    # Start at 0 to ensure immediate poll on startup
+    last_full_metrics_poll = 0
+    last_purge_time = 0
+
     while True:
         try:
-            # 1. Fetch current server list
-            servers = []
-            with _conn() as c:
-                rows = c.execute("SELECT id, ip, username, password_enc FROM servers").fetchall()
-                servers = [dict(r) for r in rows]
+            # 1. Fetch current server list (Quick copy)
+            servers_snapshot = []
+            with _conn() as conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as c:
+                    c.execute("SELECT id, ip, username, password_enc, is_agent FROM servers")
+                    servers_snapshot = c.fetchall()
             
-            if not servers:
+            if not servers_snapshot:
                 time.sleep(10); continue
+
+            now_float = time.time()
+            # Decide if we do a full WinRM poll this cycle (every 600s)
+            do_full_poll = (now_float - last_full_metrics_poll >= 600)
 
             # 2. Define the individual worker task
             def poll_one(s):
@@ -878,80 +978,99 @@ def _fleet_worker_loop():
                 ip = s["ip"]
                 is_agent = s.get("is_agent", 0)
                 
-                # HEARTBEAT CHECK for AGENTS
+                # HEARTBEAT CHECK for AGENTS (High Priority)
                 if is_agent:
                     with _fleet_lock:
-                        fm = _fleet_metrics_cache.get(srv_id)
-                        if fm and time.time() - fm.get("last_sync", 0) > 120:
+                        srv_id_str = str(srv_id)
+                        fm = _fleet_metrics_cache.get(srv_id_str)
+                        # Agent Silence threshold: 20 minutes
+                        if fm and time.time() - fm.get("last_sync", 0) > 1200:
                              return srv_id, {"status": "offline", "source": "agent"}
-                        return srv_id, fm if fm else {"status": "offline", "source": "agent"}
+                        return srv_id, (fm if fm else {"status": "offline", "source": "agent"})
 
-                # PRE-FLIGHT: Fast socket check (1s timeout)
+                # CONNECTIVITY CHECK (Fast socket check) - Runs every cycle (10s)
                 try:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                        sock.settimeout(1.0)
+                        sock.settimeout(1.2)
                         if sock.connect_ex((ip, 5985)) != 0:
-                            return srv_id, {"status": "offline"}
+                            return srv_id, {"status": "offline", "source": "fleet_worker"}
                 except:
-                    return srv_id, {"status": "offline"}
+                    return srv_id, {"status": "offline", "source": "fleet_worker"}
 
-                try:
-                    # SESSION REUSE: Avoid handshake overhead
-                    if srv_id not in _fleet_sessions:
-                        pwd = decrypt_password(s["password_enc"])
-                        _fleet_sessions[srv_id] = winrm.Session(
-                            ip, auth=(s["username"], pwd), 
-                            transport="ntlm", server_cert_validation="ignore",
-                            read_timeout_sec=10, operation_timeout_sec=8
-                        )
-                    
-                    ws = _fleet_sessions[srv_id]
-                    # Optimized NOC query: Instant CPU + RAM + Disk Space
-                    ps = r'''
-                    $ErrorActionPreference='Stop';
-                    $c = (Get-CimInstance Win32_Processor).LoadPercentage[0]; 
-                    $os = Get-CimInstance Win32_OperatingSystem;
-                    $ramPct = [math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100, 0);
-                    $d = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'";
-                    $total = [math]::Round($d.Size / 1GB, 0);
-                    $free = [math]::Round($d.FreeSpace / 1GB, 0);
-                    $used = $total - $free;
-                    $diskPct = if($total -gt 0){ [math]::Round(($used/$total)*100,0) }else{0};
-                    "$c;$ramPct;$diskPct;$used;$total"
-                    '''
-                    res = ws.run_ps(ps)
-                    if res.status_code == 0:
-                        raw = res.std_out.decode('utf-8', errors='ignore').strip()
-                        parts = raw.split(';')
-                        if len(parts) >= 4:
-                            return srv_id, {
-                                "status": "online",
-                                "cpu": int(parts[0]),
-                                "ram": int(parts[1]),
-                                "disk": int(parts[2]),
-                                "used_gb": int(parts[3]),
-                                "total_gb": int(parts[4]),
-                                "last_sync": time.time()
-                            }
-                except Exception as e:
-                    _fleet_sessions.pop(srv_id, None) # Clear corrupted session
-                
-                return srv_id, {"status": "online"} # Placeholder if PS failed but connection is up
+                # METRICS POLL (Slow WinRM) - Runs only every 10 minutes
+                if do_full_poll:
+                    try:
+                        # SESSION REUSE
+                        if srv_id not in _fleet_sessions:
+                            pwd = decrypt_password(s["password_enc"])
+                            _fleet_sessions[srv_id] = winrm.Session(
+                                ip, auth=(s["username"], pwd), 
+                                transport="ntlm", server_cert_validation="ignore",
+                                read_timeout_sec=10, operation_timeout_sec=8
+                            )
+                        
+                        ws = _fleet_sessions[srv_id]
+                        ps = r'''
+                        $ErrorActionPreference='Stop';
+                        $c = (Get-CimInstance Win32_Processor).LoadPercentage[0]; 
+                        $os = Get-CimInstance Win32_OperatingSystem;
+                        $ramPct = [math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100, 0);
+                        $d = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'";
+                        $total = [math]::Round($d.Size / 1GB, 0);
+                        $free = [math]::Round($d.FreeSpace / 1GB, 0);
+                        $used = $total - $free;
+                        $diskPct = if($total -gt 0){ [math]::Round(($used/$total)*100,0) }else{0};
+                        "$c;$ramPct;$diskPct;$used;$total"
+                        '''
+                        res = ws.run_ps(ps)
+                        if res.status_code == 0:
+                            raw = res.std_out.decode('utf-8', errors='ignore').strip()
+                            parts = raw.split(';')
+                            if len(parts) >= 4:
+                                return srv_id, {
+                                    "status": "online",
+                                    "cpu": int(parts[0]),
+                                    "ram": int(parts[1]),
+                                    "disk": int(parts[2]),
+                                    "used_gb": int(parts[3]),
+                                    "total_gb": int(parts[4]),
+                                    "last_sync": time.time(),
+                                    "source": "fleet_worker"
+                                }
+                    except Exception:
+                        _fleet_sessions.pop(srv_id, None)
 
-            # 3. Parallel Execution with controlled max_workers
-            with ThreadPoolExecutor(max_workers=20) as executor:
-                results = list(executor.map(poll_one, servers))
+                # If connection is up but no poll was due, or poll failed, keep last known metrics but status Online
+                with _fleet_lock:
+                    old_fm = _fleet_metrics_cache.get(srv_id, {})
+                    return srv_id, {**old_fm, "status": "online", "source": "fleet_worker"}
+
+            # 3. Parallel Execution (High-concurrency Pool)
+            with ThreadPoolExecutor(max_workers=30) as executor:
+                results = list(executor.map(poll_one, servers_snapshot))
             
-            # 4. Atomic Cache Update (Thread-Safe)
+            # 4. Atomic Cache Update (Minimize lock holding time)
+            update_pkg = {}
+            for srv_id, metrics in results:
+                update_pkg[str(srv_id)] = metrics
+
             with _fleet_lock:
-                for srv_id, metrics in results:
-                    _fleet_metrics_cache[srv_id] = metrics
+                _fleet_metrics_cache.update(update_pkg)
+            
+            if do_full_poll:
+                last_full_metrics_poll = now_float
+
+            # 5. Automated Log Maintenance (Run every 24 hours)
+            if now_float - last_purge_time >= 86400:
+                logger.info("🧹 [MAINTENANCE] Purging logs older than 24 hours...")
+                purge_old_logs()
+                last_purge_time = now_float
                     
         except Exception as ge:
             logger.error(f"FATAL FLEET WORKER ERROR: {ge}")
             
-        # 5. ENTERPRISE REST INTERVAL (12s) - Optimized for responsiveness
-        time.sleep(12) 
+        # 5. FAST CONNECTIVITY TICK (30s)
+        time.sleep(30) 
 
 # Start the thread on module import
 threading.Thread(target=_fleet_worker_loop, daemon=True).start()

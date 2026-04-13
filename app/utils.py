@@ -9,17 +9,22 @@ class PollingFilter(logging.Filter):
     """
     def filter(self, record):
         msg = record.getMessage()
-        # Definimos las rutas que generan ruido (polling constante)
-        polling_routes = ["/status", "/api/metrics", "/api/servers", "/api/groups"]
+        # Definimos las rutas que generan ruido (polling constante y estáticos)
+        noise_routes = [
+            "/status", "/api/metrics", "/api/servers", 
+            "/api/groups", "/api/agent/report", "/api/alerts/stream",
+            "/api/logs", "/static/img", "/logo", "/favicon"
+        ]
         
-        # Verificamos si la petición es una de las rutas de polling
-        is_polling = any(route in msg for route in polling_routes)
+        # Verificamos si la petición es una de las rutas de ruido
+        is_noise = any(route in msg for route in noise_routes)
         
         # Verificamos si es una respuesta exitosa (evitamos silenciar errores reales)
-        is_success = " 200 " in msg or " 304 " in msg
+        # werkzeug logs look like: "GET /api/logs HTTP/1.1" 200 -
+        is_success = " 200 " in msg or " 304 " in msg or " 101 " in msg
         
-        # Si es polling y es éxito, filtramos el registro (return False)
-        if is_polling and is_success:
+        # Si es ruido y es éxito, filtramos el registro (return False)
+        if is_noise and is_success:
             return False
             
         return True

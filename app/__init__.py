@@ -1,5 +1,6 @@
 from flask import Flask
 import os
+from datetime import timedelta
 from .utils import apply_logging_filters
 
 def create_app():
@@ -12,9 +13,19 @@ def create_app():
         template_folder=os.path.join(base_dir, "templates")
     )
     
-    app.secret_key = "winrm-monitor-key-2026"
+    app.secret_key = os.getenv("SECRET_KEY", "winrm-monitor-key-production-2026")
     
-    # Apply filters
+    # 2. Security Config
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+        # Ensure session tokens are only sent over HTTPS in production
+        SESSION_COOKIE_SECURE=os.getenv("PG_HOST", "localhost") != "localhost"
+    )
+
+    # 3. Apply filters
+    from .utils import apply_logging_filters
     apply_logging_filters()
     
     # Register routes

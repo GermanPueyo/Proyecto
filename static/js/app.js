@@ -16,7 +16,12 @@ const history = {
 let chartCpuRam = null;
 let chartNet = null;
 let visible = { cpu: true, ram: true, disk: true, net: true };
-let connAbortController = null; // High-performance cancellation
+let LOG_TO_DELETE = null; // Global for deletion flow
+let H_THR_CRIT = 85;
+let H_THR_WARN = 70;
+let H_FLTR = null; // critical, warning, null
+let LAST_FLEET_DATA = []; // To store full server info for heatmap
+let _fleet_metrics_cache = {}; // Global for real-time updates
 
 /* =============================================================
    HOME — Dynamic Server Cards & Drag & Drop
@@ -26,7 +31,42 @@ document.addEventListener('DOMContentLoaded', () => {
     loadServerCards();
     // Fast second pulse for NOC data
     setTimeout(loadServerCards, 1500); 
+    
+    // START REAL-TIME ALERT TUNNEL (SSE)
+    initRealTimeAlerts();
+    // Initialize Heatmap Grid (40 placeholders)
+    initHeatmapGrid();
 });
+
+/**
+ * SSE TUNNEL: Listen for high-urgency agent reports and update UI instantly
+ */
+function initRealTimeAlerts() {
+  console.log("⚡ INICIANDO TUNEL DE EMERGENCIAS (SSE)...");
+  const evtSource = new EventSource("/api/alerts/stream");
+
+  evtSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    
+    if (data.type === 'agent_update') {
+      console.log(`🚀 ALERTA RECIBIDA DE AGENTE (ID: ${data.server_id}). Actualizando Dashboard y Logs...`);
+      // Instant refresh of the dashboard
+      loadServerCards();
+      // Fast refresh of logs if the user is in that view
+      if (document.getElementById('view-logs').style.display !== 'none') {
+        loadAlertLogs();
+      }
+      // Instant refresh of Heatmap
+      renderHeatmap();
+    }
+  };
+
+  evtSource.onerror = (err) => {
+    console.warn("⚠️ Perdiendo conexión con el túnel de emergencias. Rearmando...");
+    evtSource.close();
+    setTimeout(initRealTimeAlerts, 5000); // Auto-reconnect after 5s
+  };
+}
 
 // Persist open groups in localStorage
 const savedGroups = localStorage.getItem('openedGroups');
@@ -89,11 +129,22 @@ async function loadServerCards() {
 
   try {
     const res = await fetch('/api/servers');
-    let data = await res.json();
-    if (!data) return;
+    const data = await res.json();
+    if (!data || !data.groups) return;
 
-    const allGroups = data.groups || data || [];
-    let groups = [...allGroups];
+    const rawGroups = data.groups || [];
+    LAST_FLEET_DATA = rawGroups;
+    
+    // SYNC SIDEBAR & KPI (Must be first to populate internal counts)
+    if (typeof updateNocDashboard === 'function') updateNocDashboard(rawGroups);
+    
+    // SYNC HEATMAP
+    renderHeatmap(); 
+    
+    // Update Groups Sidebar
+    if (typeof updateNocDashboard === 'function') updateNocDashboard(rawGroups);
+
+    let groups = [...rawGroups];
 
     // IMPLEMENT ISOLATION FOR THE MAIN GRID ONLY
     if (ISOLATED_GROUP) {
@@ -179,7 +230,7 @@ async function loadServerCards() {
               return `
                 <div class="mini-card ${isAlert ? 'status-alert' : ''} ${!isOnline ? 'status-offline' : ''}" 
                      data-sid="${s.id}"
-                     onclick="connectToServer(${s.id}, '${s.ip}')">
+                     style="cursor: default">
                   <div class="mc-actions">
                     <button class="mc-btn" title="Editar" onclick="event.stopPropagation(); openEditServerModal(${s.id}, '${alias.replace(/'/g, "\\'")}', '${s.ip}', '${escapeHTML(s.username).replace(/'/g, "\\'")}', ${gid}, '${escapeHTML(s.tags || '').replace(/'/g, "\\'")}')">✏️</button>
                     <button class="mc-btn" title="Eliminar" onclick="event.stopPropagation(); deleteServerCard(${s.id}, '${alias.replace(/'/g, "\\'")}')">🗑️</button>
@@ -237,8 +288,7 @@ async function loadServerCards() {
     grid.innerHTML = html;
     initSortable();
     
-    // Auto-update dashboard health analytics (Pass allGroups for the Sidebar)
-    if (typeof updateNocDashboard === 'function') updateNocDashboard(allGroups);
+    // Redundant call removed - dashboard already updated above
   } catch (e) {
     console.error("Error loading server cards:", e);
   }
@@ -326,7 +376,7 @@ function updateNocDashboard(groups) {
         } else {
             alertBadge.textContent = displayAlerts.length;
             alertList.innerHTML = displayAlerts.map(a => `
-                <div class="alert-card ${a.type}" onclick="connectToServer(${a.sid}, '${a.ip}')">
+                <div class="alert-card ${a.type}" style="cursor: default">
                     <div class="alert-header">
                         <span>🚨 ${a.res.toUpperCase()}</span>
                         <span>Crítico</span>
@@ -363,25 +413,163 @@ function scrollToGroup(gid) {
 }
 
 function switchNocTab(tab) {
-    const homeView = document.querySelector('.health-center');
+    const healthView = document.getElementById('health-center-overview');
     const serversView = document.getElementById('noc-servers-view');
+    const logsView = document.getElementById('view-logs');
+    
     const navHome = document.getElementById('nav-noc-home');
     const navServers = document.getElementById('nav-noc-servers');
+    const navLogs = document.getElementById('nav-noc-logs');
+
+    // Hide everything first
+    if(healthView) healthView.style.display = 'none';
+    if(serversView) serversView.style.display = 'none';
+    if(logsView) logsView.style.display = 'none';
+    
+    // Remove active classes
+    if(navHome) navHome.classList.remove('active');
+    if(navServers) navServers.classList.remove('active');
+    if(navLogs) navLogs.classList.remove('active');
 
     if (tab === 'home') {
-        homeView.style.setProperty('display', 'flex', 'important');
-        serversView.style.display = 'none';
-        navHome.classList.add('active');
-        navServers.classList.remove('active');
-        ISOLATED_GROUP = null; // Clear isolation when going home
-        loadServerCards(); // Recalculate global health
-    } else {
-        homeView.style.display = 'none';
-        serversView.style.display = 'block';
-        navHome.classList.remove('active');
-        navServers.classList.add('active');
+        if(healthView) healthView.style.display = 'block';
+        if(navHome) navHome.classList.add('active');
+        ISOLATED_GROUP = null;
+        loadServerCards(); 
+    } else if (tab === 'servers') {
+        if(serversView) serversView.style.display = 'block';
+        if(navServers) navServers.classList.add('active');
         loadServerCards();
+    } else if (tab === 'logs') {
+        if(logsView) {
+            logsView.style.display = 'block';
+            if(navLogs) navLogs.classList.add('active');
+            loadAlertLogs();
+        }
     }
+}
+
+async function loadAlertLogs() {
+    const tbody = document.getElementById('logs-tbody');
+    if(!tbody) return;
+    
+    try {
+        const res = await fetch('/api/logs?limit=100');
+        const logs = await res.json();
+        
+        if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:var(--muted)">No hay registros históricos.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = logs.map(l => {
+            const start = new Date(l.timestamp);
+            const end = l.end_timestamp ? new Date(l.end_timestamp) : null;
+            
+            let durationStr = '<span class="pulse-active">En curso...</span>';
+            if (end) {
+                const diffMs = end - start;
+                const minutes = Math.floor(diffMs / 60000);
+                const seconds = Math.floor((diffMs % 60000) / 1000);
+                durationStr = `${minutes}m ${seconds}s`;
+            }
+
+            let valClass = '';
+            if (l.metric_type === 'STATUS') valClass = 'tag-status';
+            else if (l.value >= 80) valClass = 'tag-critical';
+
+            // Calculate average: Use value_avg if resolved, or calculate current average if active
+            let avgVal = l.value_avg;
+            if (avgVal === null && l.sample_count > 0) {
+                avgVal = l.value_sum / l.sample_count;
+            }
+
+            return `
+                <tr id="log-row-${l.id}">
+                    <td style="color:var(--muted)">${start.toLocaleTimeString()}</td>
+                    <td style="color:var(--muted)">${end ? end.toLocaleTimeString() : '—'}</td>
+                    <td><strong>${durationStr}</strong></td>
+                    <td style="font-weight:600">${escapeHTML(l.server_name)}</td>
+                    <td><span class="log-tag">${l.metric_type}</span></td>
+                    <td style="color:var(--muted)">${avgVal ? avgVal.toFixed(1) + '%' : '—'}</td>
+                    <td><span class="${valClass}">${l.value > 0 ? l.value.toFixed(1) + '%' : '—'}</span></td>
+                    <td style="text-align:right">
+                      <button class="mc-btn" style="opacity:0.6" onclick="deleteAlertLog(${l.id})">🗑️</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch(e) {
+        console.error("Error loading logs:", e);
+    }
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('confirm-modal');
+    if (modal) modal.classList.remove('active');
+    LOG_TO_DELETE = null;
+}
+
+function clearAllLogs() {
+    LOG_TO_DELETE = 'all';
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) return;
+    modal.querySelector('h2').textContent = '¿Limpiar historial?';
+    modal.querySelector('.modal-sub').textContent = 'Se borrarán TODOS los registros permanentemente.';
+    modal.classList.add('active');
+    setupConfirmClick();
+}
+
+async function deleteAlertLog(id) {
+    LOG_TO_DELETE = id;
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) return;
+    modal.querySelector('h2').textContent = '¿Eliminar registro?';
+    modal.querySelector('.modal-sub').textContent = 'Esta acción no se puede deshacer.';
+    modal.classList.add('active');
+    setupConfirmClick();
+}
+
+function setupConfirmClick() {
+    const btn = document.getElementById('confirm-delete-btn');
+    if (!btn) return;
+    btn.onclick = async () => {
+        try {
+            const isAll = LOG_TO_DELETE === 'all';
+            const url = isAll ? '/api/logs' : `/api/logs/${LOG_TO_DELETE}`;
+            const res = await fetch(url, { method: 'DELETE' });
+            if (res.ok) {
+                if (isAll) {
+                    const tbody = document.getElementById('logs-tbody');
+                    if (tbody) {
+                        Array.from(tbody.children).forEach(row => {
+                            row.style.opacity = '0';
+                            row.style.transform = 'translateX(20px)';
+                        });
+                        setTimeout(() => {
+                            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--muted)">No hay registros históricos.</td></tr>';
+                        }, 300);
+                    }
+                } else {
+                    const row = document.getElementById(`log-row-${LOG_TO_DELETE}`);
+                    if (row) {
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(20px)';
+                        setTimeout(() => {
+                            row.remove();
+                            const tbody = document.getElementById('logs-tbody');
+                            if (tbody && tbody.children.length === 0) {
+                                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--muted)">No hay registros históricos.</td></tr>';
+                            }
+                        }, 300);
+                    }
+                }
+            }
+            closeConfirmModal();
+        } catch (e) {
+            console.error("Error deleting log:", e);
+        }
+    };
 }
 
 // Global helper to reset isolation
@@ -397,7 +585,7 @@ window._statusInterval = setInterval(() => {
   if (home && home.style.display !== 'none' && !window._isDragging) {
     loadServerCards(); 
   }
-}, 10000);
+}, 30000);
 
 function initSortable() {
   const grid = document.getElementById('servers-grid');
@@ -518,6 +706,7 @@ async function openGroupsModal() {
 }
 function closeGroupsModal() {
   document.getElementById('groups-modal').classList.remove('active');
+  // FORCE REFRESH: Sync dashboard layout with the new group order immediately
   loadServerCards();
 }
 
@@ -528,14 +717,31 @@ async function loadGroupsList() {
   if (!data.ok) return;
 
   container.innerHTML = data.groups.map(g => `
-    <div class="group-mgmt-item">
+    <div class="group-mgmt-item" data-id="${g.id}">
       <div class="gm-drag-handle">≡</div>
-      <input type="text" value="${g.name}" class="gm-input" 
+      <input type="text" value="${escapeHTML(g.name)}" class="gm-input" 
              onchange="renameGroup(${g.id}, this.value)"
              onkeydown="if(event.key==='Enter') { this.blur(); renameGroup(${g.id}, this.value); }">
       <button class="gm-delete-btn" title="Eliminar Grupo" onclick="deleteGroup(${g.id})">🗑️</button>
     </div>
   `).join('');
+
+  // Initialize sortable for groups management modal
+  new Sortable(container, {
+    animation: 200,
+    handle: '.gm-drag-handle',
+    onEnd: async () => {
+      const order = [...container.children].map((el, i) => ({
+        id: parseInt(el.dataset.id),
+        position: i
+      }));
+      await fetch('/api/groups/reorder', {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ order })
+      });
+    }
+  });
 }
 
 async function createNewGroup() {
@@ -1499,4 +1705,89 @@ document.addEventListener('keydown', e => {
   }
   if (e.key === 'Enter' && document.getElementById('server-modal').classList.contains('active')) saveServer();
 });
+
+/**
+ * HEATMAP LOGIC — Enterprise Fleet Matrix (Flexible)
+ */
+function initHeatmapGrid() {
+    // We no longer need 40 placeholders, the grid will be dynamic
+    renderHeatmap();
+}
+
+function updateThresholds() {
+    H_THR_CRIT = parseInt(document.getElementById('thr-crit').value);
+    H_THR_WARN = parseInt(document.getElementById('thr-warn').value);
+    
+    document.getElementById('val-thr-crit').textContent = H_THR_CRIT;
+    document.getElementById('val-thr-warn').textContent = H_THR_WARN;
+    
+    renderHeatmap();
+}
+
+function toggleHeatmapFilter(status) {
+    if(H_FLTR === status) H_FLTR = null;
+    else H_FLTR = status;
+    
+    // Update UI pills
+    document.querySelectorAll('#heatmap-filters .pill-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.status === H_FLTR);
+    });
+    
+    renderHeatmap();
+}
+
+async function renderHeatmap() {
+    const grid = document.getElementById('heatmap-grid');
+    if(!grid) return;
+
+    // Flatten all servers from groups
+    const servers = [];
+    LAST_FLEET_DATA.forEach(group => {
+        (group.servers || []).forEach(s => {
+            servers.push({ ...s, groupName: group.name });
+        });
+    });
+
+    if (servers.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--muted)">No hay servidores registrados.</div>';
+        return;
+    }
+
+    let critCount = 0;
+    let warnCount = 0;
+    let html = '';
+
+    servers.forEach(s => {
+        // Fallback to empty object if cache or metrics are null
+        const m = (typeof _fleet_metrics_cache !== 'undefined' ? _fleet_metrics_cache[s.id] : null) || s.metrics || {};
+        const isOnline = m.status === 'online';
+        const cpu = m.cpu || 0;
+        const ram = m.ram || 0;
+        const maxM = Math.max(cpu, ram);
+        
+        let state = 'normal';
+        if(!isOnline) state = 'offline';
+        else if(maxM >= H_THR_CRIT) { state = 'critical'; critCount++; }
+        else if(maxM >= H_THR_WARN) { state = 'warning'; warnCount++; }
+        
+        // Filter logic
+        let isVisible = true;
+        if(H_FLTR === 'critical' && state !== 'critical') isVisible = false;
+        if(H_FLTR === 'warning' && state !== 'warning') isVisible = false;
+
+        if (isVisible) {
+            html += `
+                <div class="hm-block ${state}" title="${s.alias} (${s.ip})" onclick="scrollToGroup('${s.group_id}')">
+                    <span class="hm-group">${s.groupName}</span>
+                    <span class="hm-id">${s.alias}</span>
+                    <span class="hm-status-text">${isOnline ? maxM + '%' : 'OFF'}</span>
+                </div>
+            `;
+        }
+    });
+
+    grid.innerHTML = html;
+    document.getElementById('count-h-crit').textContent = critCount;
+    document.getElementById('count-h-warn').textContent = warnCount;
+}
 

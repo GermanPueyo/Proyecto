@@ -19,7 +19,7 @@ class FlowerNodeAgent:
     def __init__(self):
         self.running = True
         self.last_heartbeat = 0
-        self.report_interval = 10 # Segundos entre reportes de métricas
+        self.report_interval = 30 # Segundos entre reportes de métricas (Pruebas: 30s)
         self.heartbeat_interval = 60 # Segundos entre latidos (estoy vivo)
         
         # Registrar señales de apagado (Last Gasp)
@@ -73,22 +73,45 @@ class FlowerNodeAgent:
     def run(self):
         logger.info(f"Agente Flower Node iniciado para Server ID: {SERVER_ID}")
         
+        # --- 1. STARTUP SYNC: Informe inicial inmediato para visibilidad ---
+        logger.info("Enviando reporte de inicio...")
+        m_start = {
+            "cpu": psutil.cpu_percent(interval=0.5),
+            "ram": psutil.virtual_memory().percent,
+            "disk": psutil.disk_usage('C:').percent
+        }
+        self.send_report(status="online", metrics=m_start)
+        self.last_heartbeat = time.time()
+
         while self.running:
+            # --- 2. LOCAL MONITORING: Pulso rápido de 1s ---
+            time.sleep(1) 
             now = time.time()
-            metrics = self.get_metrics()
             
-            if metrics:
-                # Comprobar si hay niveles críticos (>80%) para envío inmediato
-                is_critical = any(v >= 80 for v in metrics.values())
-                
-                # Si es crítico o si ha pasado el intervalo normal, enviamos
-                if is_critical or (now - self.last_heartbeat >= self.report_interval):
-                    success = self.send_report(status="online", metrics=metrics)
-                    if success:
-                        self.last_heartbeat = now
-                        logger.info(f"Reporte enviado: CPU {metrics['cpu']}% | RAM {metrics['ram']}% | DISK {metrics['disk']}%")
+            # Captura rápida
+            metrics = {
+                "cpu": psutil.cpu_percent(interval=0.1),
+                "ram": psutil.virtual_memory().percent,
+                "disk": psutil.disk_usage('C:').percent
+            }
             
-            time.sleep(self.report_interval)
+            # ¿Hay crisis?
+            is_critical = any(v >= 80 for v in metrics.values())
+            
+            # --- 3. DECISIÓN DE ENVÍO ---
+            # Caso A: CRISIS -> Enviar de inmediato si es la primera vez o ha pasado 1s
+            if is_critical:
+                success = self.send_report(status="online", metrics=metrics)
+                if success:
+                    self.last_heartbeat = now
+                    logger.info(f"[🔥 ALERTA CRÍTICA] CPU: {metrics['cpu']}% | RAM: {metrics['ram']}%")
+            
+            # Caso B: NORMAL -> Esperar al intervalo (10s en pruebas, luego 900s)
+            elif (now - self.last_heartbeat >= self.report_interval):
+                success = self.send_report(status="online", metrics=metrics)
+                if success:
+                    self.last_heartbeat = now
+                    logger.info(f"[✅ NORMAL] Reporte periódico enviado. CPU: {metrics['cpu']}%")
 
 if __name__ == "__main__":
     # Asegúrate de instalar dependencias primero:
