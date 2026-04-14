@@ -507,10 +507,51 @@ def agent_report():
 
 @main_bp.route('/api/logs', methods=['GET'])
 def api_get_logs():
-    """Returns the historical alert log entries."""
-    limit = request.args.get('limit', 100, type=int)
-    from .database import get_alert_logs
-    return jsonify(get_alert_logs(limit))
+    """Returns the historical alert log entries with pagination."""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        if page < 1: page = 1
+        
+        from .database import get_alert_logs, get_alert_logs_count
+        
+        total = get_alert_logs_count()
+        offset = (page - 1) * per_page
+        logs = get_alert_logs(limit=per_page, offset=offset)
+        
+        import math
+        pages = math.ceil(total / per_page) if total > 0 else 1
+        
+        for l in logs:
+            # We convert to string in Python to avoid browser "correcting" the time
+            if l['timestamp']:
+                l['timestamp_str'] = l['timestamp'].strftime('%d %b, %H:%M')
+            else:
+                l['timestamp_str'] = '—'
+                
+            if l['end_timestamp']:
+                l['end_timestamp_str'] = l['end_timestamp'].strftime('%d %b, %H:%M')
+                # Calculate Duration server-side
+                delta = l['end_timestamp'] - l['timestamp']
+                total_sec = int(delta.total_seconds())
+                mins = total_sec // 60
+                secs = total_sec % 60
+                l['duration_str'] = f"{mins}m {secs}s"
+            else:
+                l['end_timestamp_str'] = '—'
+                l['duration_str'] = 'Activo'
+        
+        return jsonify({
+            "ok": True,
+            "logs": logs,
+            "total": total,
+            "pages": pages,
+            "current_page": page,
+            "per_page": per_page
+        })
+    except Exception as e:
+        logger.error(f"Error en api_get_logs: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @main_bp.route('/api/logs', methods=['DELETE'])
 def api_delete_all_logs():

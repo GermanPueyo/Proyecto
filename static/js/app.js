@@ -22,6 +22,7 @@ let H_THR_WARN = 70;
 let H_FLTR = null; // critical, warning, null
 let LAST_FLEET_DATA = []; // To store full server info for heatmap
 let _fleet_metrics_cache = {}; // Global for real-time updates
+let logCurrentPage = 1; // Pagination state for logs
 
 /* =============================================================
    HOME — Dynamic Server Cards & Drag & Drop
@@ -444,41 +445,52 @@ function switchNocTab(tab) {
         if(logsView) {
             logsView.style.display = 'block';
             if(navLogs) navLogs.classList.add('active');
-            loadAlertLogs();
+            // Reset to page 1 when switching to logs tab
+            loadAlertLogs(1);
         }
     }
 }
 
-async function loadAlertLogs() {
+async function loadAlertLogs(page = 1) {
     const tbody = document.getElementById('logs-tbody');
+    const pagination = document.getElementById('logs-pagination');
     if(!tbody) return;
     
+    logCurrentPage = page;
+    
+    // Mostramos un mini-spinner o aviso de carga sin borrar todo el alto
+    tbody.style.opacity = '0.5';
+    
     try {
-        const res = await fetch('/api/logs?limit=100');
-        const logs = await res.json();
+        const res = await fetch(`/api/logs?page=${page}&per_page=10`);
+        const data = await res.json();
         
-        if (logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:var(--muted)">No hay registros históricos.</td></tr>';
+        tbody.style.opacity = '1';
+
+        if (!data.ok || data.logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--muted)">No hay registros históricos.</td></tr>';
+            if(pagination) pagination.innerHTML = '';
             return;
         }
 
+        const logs = data.logs;
         tbody.innerHTML = logs.map(l => {
-            const start = new Date(l.timestamp);
+            const start = l.timestamp ? new Date(l.timestamp) : null;
             const end = l.end_timestamp ? new Date(l.end_timestamp) : null;
             
-            let durationStr = '<span class="pulse-active">En curso...</span>';
-            if (end) {
-                const diffMs = end - start;
-                const minutes = Math.floor(diffMs / 60000);
-                const seconds = Math.floor((diffMs % 60000) / 1000);
-                durationStr = `${minutes}m ${seconds}s`;
+            // we use the pre-formatted strings from Python to avoid timezone hell
+            const startDisplay = l.timestamp_str;
+            const endDisplay = l.end_timestamp_str;
+
+            let durationStr = l.duration_str;
+            if (durationStr === 'Activo') {
+                durationStr = '<span class="pulse-active">Activo</span>';
             }
 
             let valClass = '';
             if (l.metric_type === 'STATUS') valClass = 'tag-status';
             else if (l.value >= 80) valClass = 'tag-critical';
 
-            // Calculate average: Use value_avg if resolved, or calculate current average if active
             let avgVal = l.value_avg;
             if (avgVal === null && l.sample_count > 0) {
                 avgVal = l.value_sum / l.sample_count;
@@ -486,22 +498,52 @@ async function loadAlertLogs() {
 
             return `
                 <tr id="log-row-${l.id}">
-                    <td style="color:var(--muted)">${start.toLocaleTimeString()}</td>
-                    <td style="color:var(--muted)">${end ? end.toLocaleTimeString() : '—'}</td>
-                    <td><strong>${durationStr}</strong></td>
+                    <td>${startDisplay}</td>
+                    <td>${endDisplay}</td>
+                    <td style="font-weight:600">${durationStr}</td>
                     <td style="font-weight:600">${escapeHTML(l.server_name)}</td>
                     <td><span class="log-tag">${l.metric_type}</span></td>
                     <td style="color:var(--muted)">${avgVal ? avgVal.toFixed(1) + '%' : '—'}</td>
                     <td><span class="${valClass}">${l.value > 0 ? l.value.toFixed(1) + '%' : '—'}</span></td>
                     <td style="text-align:right">
-                      <button class="mc-btn" style="opacity:0.6" onclick="deleteAlertLog(${l.id})">🗑️</button>
+                      <button class="mc-btn" style="opacity:0.4" onclick="deleteAlertLog(${l.id})">🗑️</button>
                     </td>
                 </tr>
             `;
         }).join('');
+
+        renderPagination(data.current_page, data.pages);
     } catch(e) {
+        tbody.style.opacity = '1';
         console.error("Error loading logs:", e);
     }
+}
+
+function renderPagination(current, total) {
+    const container = document.getElementById('logs-pagination');
+    if (!container) return;
+
+    let html = '';
+    
+    // Info text
+    html += `<span style="font-size: 0.75rem; color: var(--muted); margin-right: auto;">Página ${current} de ${total}</span>`;
+
+    // Previous Button
+    html += `<button class="btn btn-ghost mini" ${current === 1 ? 'disabled' : ''} onclick="loadAlertLogs(${current - 1})">Anterior</button>`;
+
+    // Page Numbers (limited to 5 for clean UI)
+    let startPage = Math.max(1, current - 2);
+    let endPage = Math.min(total, startPage + 4);
+    if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="pill-btn mini ${i === current ? 'active-desc' : ''}" style="min-width:30px" onclick="loadAlertLogs(${i})">${i}</button>`;
+    }
+
+    // Next Button
+    html += `<button class="btn btn-ghost mini" ${current === total ? 'disabled' : ''} onclick="loadAlertLogs(${current + 1})">Siguiente</button>`;
+
+    container.innerHTML = html;
 }
 
 function closeConfirmModal() {

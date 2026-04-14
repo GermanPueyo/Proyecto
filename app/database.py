@@ -285,7 +285,7 @@ def resolve_alert_log(server_id: int, metric_type: str):
                 """, (final_avg, active['id']))
             conn.commit()
 
-def get_alert_logs(limit=100):
+def get_alert_logs(limit=100, offset=0):
     with _conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as c:
             c.execute("""
@@ -293,9 +293,15 @@ def get_alert_logs(limit=100):
                 FROM alerts_log l
                 JOIN servers s ON l.server_id = s.id
                 ORDER BY l.timestamp DESC
-                LIMIT %s
-            """, (limit,))
+                LIMIT %s OFFSET %s
+            """, (limit, offset))
             return [dict(r) for r in c.fetchall()]
+
+def get_alert_logs_count():
+    with _conn() as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT COUNT(*) FROM alerts_log")
+            return c.fetchone()[0]
 
 def delete_alert_log(log_id: int):
     with _conn() as conn:

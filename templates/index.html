@@ -177,6 +177,7 @@
             border: 1px solid rgba(255,255,255,0.05);
             overflow: hidden;
             margin-top: 10px;
+            min-height: 480px; /* Evita saltos al cargar */
           }
           .logs-table {
             width: 100%;
@@ -272,20 +273,23 @@
             <table class="logs-table">
               <thead>
                 <tr>
-                  <th>Inicio</th>
-                  <th>Fin</th>
-                  <th>Duración</th>
+                  <th style="width:130px">Inicio</th>
+                  <th style="width:130px">Fin</th>
+                  <th style="width:120px">Duración</th>
                   <th>Servidor</th>
-                  <th>Métrica</th>
-                  <th>Media</th>
-                  <th>Máximo</th>
+                  <th style="width:100px">Métrica</th>
+                  <th style="width:80px">Media</th>
+                  <th style="width:80px">Máximo</th>
                   <th style="width:40px"></th>
                 </tr>
               </thead>
-              <tbody id="logs-tbody">
+            <tbody id="logs-tbody">
                 <tr><td colspan="8" style="text-align:center; padding:40px; color:var(--muted)">Cargando historial...</td></tr>
               </tbody>
             </table>
+          </div>
+          <div id="logs-pagination" style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 15px; padding: 0 10px;">
+              <!-- Pagination controls appear here -->
           </div>
         </div>
 
@@ -578,33 +582,6 @@
         </div>
 
 
-        <!-- VISTA E — Logs de Alertas -->
-        <div id="view-logs" style="display:none">
-          <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-end; padding-right: 15px;">
-            <div>
-              <h1>Logs</h1>
-              <p>Registro persistente de todos los eventos críticos detectados por los agentes</p>
-            </div>
-            <button class="btn btn-ghost" style="padding: 6px 16px; margin-bottom: 12px;" onclick="switchNocTab('logs')">🔄 Refrescar</button>
-          </div>
-          <div class="logs-container">
-            <table class="logs-table">
-              <thead>
-                <tr>
-                  <th>Inicio</th>
-                  <th>Fin</th>
-                  <th>Duración</th>
-                  <th>Servidor</th>
-                  <th>Métrica</th>
-                  <th>Valor Máx.</th>
-                </tr>
-              </thead>
-              <tbody id="logs-tbody">
-                <tr><td colspan="5" style="text-align:center; padding:40px; color:var(--muted)">Cargando historial...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
 
       </main>
     </div>
