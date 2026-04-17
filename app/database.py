@@ -123,6 +123,19 @@ def init_db():
             # Ensure 'General' group exists
             c.execute("INSERT INTO groups (name) VALUES ('General') ON CONFLICT (name) DO NOTHING")
             
+            # --- Add last_dhcp_json column if it doesn't exist (safe migration) ---
+            c.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='servers' AND column_name='last_dhcp_json'
+                    ) THEN
+                        ALTER TABLE servers ADD COLUMN last_dhcp_json TEXT;
+                    END IF;
+                END $$;
+            """)
+            
             # --- PERFORMANCE INDICES ---
             c.execute("CREATE INDEX IF NOT EXISTS idx_alerts_log_server_id_active ON alerts_log(server_id) WHERE is_active = TRUE")
             c.execute("CREATE INDEX IF NOT EXISTS idx_servers_ip ON servers(ip)")
@@ -323,3 +336,31 @@ def purge_old_logs():
             c.execute("DELETE FROM alerts_log WHERE timestamp < NOW() - INTERVAL '1 day'")
             conn.commit()
             return c.rowcount
+
+# ------------------------------------------------------------------
+# DHCP Persistence (survives Flask restarts)
+# ------------------------------------------------------------------
+def save_dhcp_data(server_id: int, dhcp_dict: dict):
+    """Persists the latest DHCP stats for a server to the DB."""
+    import json
+    with _conn() as conn:
+        with conn.cursor() as c:
+            c.execute(
+                "UPDATE servers SET last_dhcp_json = %s WHERE id = %s",
+                (json.dumps(dhcp_dict), server_id)
+            )
+            conn.commit()
+
+def load_all_dhcp_from_db() -> dict:
+    """Loads last-known DHCP data for all servers from the DB. Returns {server_id_str: dhcp_dict}."""
+    import json
+    result = {}
+    with _conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as c:
+            c.execute("SELECT id, last_dhcp_json FROM servers WHERE last_dhcp_json IS NOT NULL")
+            for row in c.fetchall():
+                try:
+                    result[str(row["id"])] = json.loads(row["last_dhcp_json"])
+                except Exception:
+                    pass
+    return result

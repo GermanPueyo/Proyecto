@@ -30,8 +30,15 @@ let logCurrentPage = 1; // Pagination state for logs
 document.addEventListener('DOMContentLoaded', () => {
     // Immediate first load
     loadServerCards();
-    // Fast second pulse for NOC data
-    setTimeout(loadServerCards, 1500); 
+    // Fast second pulse for NOC data (allows agent cache to populate)
+    setTimeout(loadServerCards, 1500);
+    // Auto-populate DHCP table on startup without user interaction
+    setTimeout(async () => {
+        try {
+            await fetch('/api/fleet/dhcp/refresh', { method: 'POST' });
+            loadServerCards();
+        } catch(e) { /* silently ignore */ }
+    }, 2500);
     
     // START REAL-TIME ALERT TUNNEL (SSE)
     initRealTimeAlerts();
@@ -51,7 +58,7 @@ function initRealTimeAlerts() {
     
     if (data.type === 'agent_update') {
       console.log(`🚀 ALERTA RECIBIDA DE AGENTE (ID: ${data.server_id}). Actualizando Dashboard y Logs...`);
-      // Instant refresh of the dashboard
+      // Instant refresh of the dashboard (this also calls updateGlobalDhcpTable internally)
       loadServerCards();
       // Fast refresh of logs if the user is in that view
       if (document.getElementById('view-logs').style.display !== 'none') {
@@ -140,7 +147,10 @@ async function loadServerCards() {
     if (typeof updateNocDashboard === 'function') updateNocDashboard(rawGroups);
     
     // SYNC HEATMAP
-    renderHeatmap(); 
+    renderHeatmap();
+    
+    // SYNC GLOBAL DHCP TABLE — runs always, no button click needed
+    updateGlobalDhcpTable(rawGroups);
     
     // Update Groups Sidebar
     if (typeof updateNocDashboard === 'function') updateNocDashboard(rawGroups);
@@ -268,6 +278,15 @@ async function loadServerCards() {
                         ${m.used_gb != null ? m.used_gb + '/' + m.total_gb + ' GB' : disk + '%'}
                       </span>
                     </div>
+                    ${m.dhcp && m.dhcp !== 'error' ? `
+                    <div class="mc-bar-item">
+                      <span>DHC</span>
+                      <div class="mc-bar-wrap">
+                        <div class="mc-bar-fill" style="width:${m.dhcp.pct}%; background:var(--blue)"></div>
+                      </div>
+                      <span style="width:25px; text-align:right">${m.dhcp.pct}%</span>
+                    </div>
+                    ` : ''}
                   </div>
                   ` : `
                   <div style="margin-top:10px; font-size:0.7rem; color:var(--danger); font-weight:600; display:flex; flex-direction:column; gap:2px;">
@@ -329,21 +348,31 @@ function updateNocDashboard(groups) {
                     counts.disk++;
                     alerts.push({ res: 'disk', type: 'emergency', title: s.alias, sid: sId, ip: sIp, desc: `Disco casi lleno: ${disk}%` });
                 }
+
+                // Global DHCP Alert logic
+                if (m.dhcp && m.dhcp.pct >= 85) {
+                    if (!counts.dhcp) counts.dhcp = 0;
+                    counts.dhcp++;
+                    alerts.push({ res: 'dhcp', type: 'warn', title: s.alias, sid: sId, ip: sIp, desc: `DHCP Saturado: ${m.dhcp.pct}% de IPs usadas` });
+                }
             }
         });
     });
+
+    // 0. Update Global DHCP Summary Table
+    updateGlobalDhcpTable(groups);
 
     // 1. Update 3 Cyclograms
     const circ = 283;
     const totalSafe = serversTotal || 1;
     
-    ['cpu', 'ram', 'disk'].forEach(res => {
+    ['cpu', 'ram', 'disk', 'dhcp'].forEach(res => {
         const ring = document.getElementById(`ring-${res}`);
         const valText = document.getElementById(`status-${res}-val`);
         const container = document.getElementById(`ciclo-${res}-container`);
         
         if (ring && valText) {
-            const count = counts[res];
+            const count = counts[res] || 0;
             const pct = count / totalSafe;
             
             // Clean UI: Hide the ring if there are 0 critical cases
@@ -351,7 +380,7 @@ function updateNocDashboard(groups) {
                 ring.style.stroke = 'transparent';
                 ring.style.strokeDasharray = `0 ${circ}`;
             } else {
-                ring.style.stroke = 'var(--danger)';
+                ring.style.stroke = res === 'dhcp' ? 'var(--blue)' : 'var(--danger)';
                 ring.style.strokeDasharray = `${circ * pct} ${circ}`;
             }
             ring.style.strokeDashoffset = 0;
@@ -414,41 +443,123 @@ function scrollToGroup(gid) {
 }
 
 function switchNocTab(tab) {
+    // Hidden sections
     const healthView = document.getElementById('health-center-overview');
     const serversView = document.getElementById('noc-servers-view');
     const logsView = document.getElementById('view-logs');
+    const dhcpView = document.getElementById('global-dhcp-summary');
     
+    // Nav items
     const navHome = document.getElementById('nav-noc-home');
     const navServers = document.getElementById('nav-noc-servers');
     const navLogs = document.getElementById('nav-noc-logs');
+    const navDhcp = document.getElementById('nav-noc-dhcp');
 
-    // Hide everything first
+    // 1. Force home screen visibility if we were in a dashboard
+    const homeScreen = document.getElementById('home-screen');
+    const dashScreen = document.getElementById('dashboard-screen');
+    if (dashScreen && dashScreen.style.display !== 'none') {
+        dashScreen.style.display = 'none';
+        homeScreen.style.display = 'block';
+        _pollActive = false; 
+        SID = null; 
+    }
+
+    // 2. Clear NOC states (don't hide dhcpView yet, let the tab logic decide)
+    const healthHeader = document.querySelector('.health-center');
+    const heatmapView = document.getElementById('noc-heatmap-view');
+    
     if(healthView) healthView.style.display = 'none';
     if(serversView) serversView.style.display = 'none';
     if(logsView) logsView.style.display = 'none';
     
-    // Remove active classes
+    // Default restore (Home/Dashboard view)
+    if(healthHeader) healthHeader.style.display = 'flex';
+    if(heatmapView) {
+        heatmapView.style.display = 'flex';
+        // Remove DHCP-only margin adjustments if they exist
+        heatmapView.style.marginTop = '20px';
+        heatmapView.style.background = 'rgba(0,0,0,0.15)';
+    }
+    
+    // 3. Reset Sidebar Classes
     if(navHome) navHome.classList.remove('active');
     if(navServers) navServers.classList.remove('active');
     if(navLogs) navLogs.classList.remove('active');
+    if(navDhcp) navDhcp.classList.remove('active');
 
+    // 4. Activate Tab
     if (tab === 'home') {
         if(healthView) healthView.style.display = 'block';
         if(navHome) navHome.classList.add('active');
+        restoreHeatmapVisuals();
         ISOLATED_GROUP = null;
         loadServerCards(); 
     } else if (tab === 'servers') {
         if(serversView) serversView.style.display = 'block';
         if(navServers) navServers.classList.add('active');
+        restoreHeatmapVisuals();
         loadServerCards();
     } else if (tab === 'logs') {
         if(logsView) {
             logsView.style.display = 'block';
             if(navLogs) navLogs.classList.add('active');
-            // Reset to page 1 when switching to logs tab
             loadAlertLogs(1);
         }
+    } else if (tab === 'dhcp-global') {
+        // Show Health view container but hide internal Home-specific blocks
+        if(healthView) healthView.style.display = 'block';
+        if(navDhcp) navDhcp.classList.add('active');
+        
+        // Hide TOP Cyclograms and Heatmap components for a clean DHCP list
+        if(healthHeader) healthHeader.style.display = 'none';
+        
+        if(heatmapView) {
+            // We keep the heatmapView container because DHCP summary is INSIDE it, 
+            // but we hide its internal heatmap-specific children to "purify" the view
+            const titleBlock = heatmapView.querySelector('div:first-child');
+            const gridBlock = document.getElementById('heatmap-grid');
+            const controlsBlock = document.getElementById('heatmap-controls');
+            const legendBlock = document.getElementById('heatmap-legend');
+            
+            if(titleBlock) titleBlock.style.display = 'none';
+            if(gridBlock) gridBlock.style.display = 'none';
+            if(controlsBlock) controlsBlock.style.display = 'none';
+            if(legendBlock) legendBlock.style.display = 'none';
+            
+            // Adjust container for DHCP-only mode
+            heatmapView.style.marginTop = '0';
+            heatmapView.style.background = 'transparent';
+            heatmapView.style.border = 'none';
+            heatmapView.style.padding = '0';
+        }
+
+        if(dhcpView) {
+            dhcpView.style.display = 'block';
+            dhcpView.scrollIntoView({ behavior: 'smooth' });
+        }
     }
+}
+
+// Helper to restore heatmap children (needed when switching back from DHCP)
+function restoreHeatmapVisuals() {
+    const heatmapView = document.getElementById('noc-heatmap-view');
+    if(!heatmapView) return;
+    
+    const titleBlock = heatmapView.querySelector('div:first-child');
+    const gridBlock = document.getElementById('heatmap-grid');
+    const controlsBlock = document.getElementById('heatmap-controls');
+    const legendBlock = document.getElementById('heatmap-legend');
+    
+    if(titleBlock) titleBlock.style.display = 'flex';
+    if(gridBlock) gridBlock.style.display = 'grid';
+    if(controlsBlock) controlsBlock.style.display = 'flex';
+    if(legendBlock) legendBlock.style.display = 'flex';
+    
+    heatmapView.style.marginTop = '20px';
+    heatmapView.style.background = 'rgba(0,0,0,0.15)';
+    heatmapView.style.border = '1px solid rgba(255,255,255,0.05)';
+    heatmapView.style.padding = '24px';
 }
 
 async function loadAlertLogs(page = 1) {
@@ -1555,57 +1666,131 @@ function closeDhcpModal() {
 }
 
 async function openDhcpModal(scopeId, scopeName) {
-  document.getElementById('dhcp-modal-title').textContent = scopeName || 'Rango DHCP';
-  document.getElementById('dhcp-modal-sub').textContent = 'Cargando direcciones IP...';
+  const modal = document.getElementById('dhcp-modal');
+  const title = document.getElementById('dhcp-modal-title');
+  const sub = document.getElementById('dhcp-modal-sub');
+  const container = document.getElementById('ip-list-container');
+  
+  if (!modal || !container) return;
 
-  const c = document.getElementById('ip-list-container');
+  title.textContent = scopeName || 'Rango DHCP';
+  sub.textContent = 'Cargando direcciones IP...';
+
+  // Check cache (using a simple global object if not defined)
+  if (typeof IP_CACHE === 'undefined') window.IP_CACHE = {};
   
   if (IP_CACHE[scopeId]) {
-    document.getElementById('dhcp-modal-sub').textContent = IP_CACHE[scopeId].subText;
-    c.innerHTML = IP_CACHE[scopeId].html;
-    document.getElementById('dhcp-modal').classList.add('active');
+    sub.textContent = IP_CACHE[scopeId].subText;
+    container.innerHTML = IP_CACHE[scopeId].html;
+    modal.classList.add('active');
     return;
   }
 
-  c.innerHTML = '<p style="color:var(--muted);text-align:center;margin-top:20px;">Consultando pool vía WinRM...</p>';
-  document.getElementById('dhcp-modal').classList.add('active');
+  container.innerHTML = `
+    <div style="grid-column: 1/-1; text-align:center; padding:40px;">
+        <div class="login-spinner" style="display:inline-block; width:30px; height:30px;"></div>
+        <p style="margin-top:15px; font-size:0.8rem; color:var(--muted);">Consultando pool vía WinRM...</p>
+    </div>
+  `;
+  modal.classList.add('active');
 
   try {
     const res = await fetch(`/api/dhcp/ips?sid=${SID}&scope=${encodeURIComponent(scopeId)}`);
     const data = await res.json();
 
     if (!data.ok) {
-      c.innerHTML = `<p style="color:var(--danger);text-align:center;">Error: ${data.error}</p>`;
+      container.innerHTML = `<p style="color:var(--danger);text-align:center;padding:20px;">Error: ${data.error}</p>`;
       return;
     }
 
-    let subText = `Subred: ${scopeId} — ${data.total} IPs totales`;
-    if (data.truncated) {
-        subText += " (Limitado a 1000 iteraciones para no bloquear el navegador)";
-    }
-    document.getElementById('dhcp-modal-sub').textContent = subText;
-
-    c.innerHTML = '<div class="ip-list-grid">' + data.ips.map(item => {
-      const isFree = !item.in_use;
-      const statusIcon = isFree ? '✅' : '❌';
-      const statusClass = isFree ? 'free' : 'used';
-      const statusText = isFree ? 'Libre' : 'En uso';
-
-      return `
-        <div class="ip-item ${statusClass}">
-          <span class="ip-str">${item.ip}</span>
-          <span class="ip-status" title="${statusText}">${statusIcon}</span>
+    const subText = `Rango detectado: ${data.total} IPs totales`;
+    sub.textContent = subText;
+    
+    let ipHtml = '';
+    data.ips.forEach(ip => {
+      const color = ip.in_use ? 'var(--danger)' : 'var(--ok)';
+      const label = ip.in_use ? 'OCUPADA' : 'LIBRE';
+      ipHtml += `
+        <div style="background:rgba(0,0,0,0.2); padding:8px 12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(255,255,255,0.03)">
+          <span style="font-family:'JetBrains Mono', monospace; font-size:0.85rem; color:var(--cream)">${ip.ip}</span>
+          <span style="font-size:0.6rem; font-weight:800; color:${color}; opacity:0.8;">${label}</span>
         </div>
       `;
-    }).join('') + '</div>';
+    });
 
-    IP_CACHE[scopeId] = {
-      subText: subText,
-      html: c.innerHTML
-    };
+    if (data.truncated) {
+      ipHtml += `<div style="grid-column: 1/-1; background:rgba(255,150,0,0.1); color:var(--warn); padding:10px; border-radius:6px; font-size:0.7rem; text-align:center;">
+          ⚠️ Listado truncado a 1000 IPs por rendimiento.
+      </div>`;
+    }
+
+    container.innerHTML = ipHtml;
+    IP_CACHE[scopeId] = { subText, html: ipHtml };
 
   } catch (e) {
-    c.innerHTML = '<p style="color:var(--danger);text-align:center;">Error de red al consultar IPs</p>';
+    container.innerHTML = '<p style="color:var(--danger);text-align:center;padding:20px;">Error de red al consultar IPs</p>';
+  }
+}
+
+async function loadDhcp(force = false) {
+  const container = document.getElementById('dhcp-container');
+  if (_dhcpLoaded && !force) return;
+  
+  try {
+    const res = await fetch(`/api/dhcp?sid=${SID}`);
+    const data = await res.json();
+    
+    if (!data.ok) {
+        container.innerHTML = `<p style="color:var(--danger)">Error: ${data.error || 'No se pudo cargar'}</p>`;
+        return;
+    }
+    
+    if (!data.scopes || data.scopes.length === 0) {
+        container.innerHTML = '<p style="color:var(--muted)">No se detectaron ámbitos DHCP en este servidor.</p>';
+        return;
+    }
+    
+    container.innerHTML = data.scopes.map(s => {
+        const pct = s.Percentage || 0;
+        const barClass = pct > 90 ? 'danger' : (pct > 75 ? 'warn' : 'success');
+        const statusColor = barClass === 'danger' ? 'var(--danger)' : (barClass === 'warn' ? 'var(--warn)' : 'var(--ok)');
+        
+        return `
+            <div class="dhcp-card">
+                <div class="dhcp-header">
+                    <div class="dhcp-icon">🌐</div>
+                    <div>
+                        <div class="dhcp-scope-name">${s.Name || 'Sin nombre'}</div>
+                        <div class="dhcp-scope-id">${s.ScopeId}</div>
+                    </div>
+                    <div class="dhcp-pct" style="color:${statusColor}">${pct}%</div>
+                </div>
+                
+                <div class="dhcp-bar-wrap">
+                    <div class="dhcp-bar-fill ${barClass}" style="width:${pct}%"></div>
+                </div>
+                
+                <div class="dhcp-stats">
+                    <div class="dhcp-stat-box">
+                        <span class="dhcp-label">Utilizadas</span>
+                        <span class="dhcp-val" style="color:var(--cream)">${s.InUse}</span>
+                    </div>
+                    <div class="dhcp-stat-box">
+                        <span class="dhcp-label">Disponibles</span>
+                        <span class="dhcp-val" style="color:var(--ok)">${s.Free}</span>
+                    </div>
+                    <div class="dhcp-stat-box">
+                        <span class="dhcp-label">Reservas</span>
+                        <span class="dhcp-val" style="color:var(--blue)">${s.Reserved}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    _dhcpLoaded = true;
+  } catch (e) {
+    container.innerHTML = '<p style="color:var(--danger)">Error crítico al conectar con el servidor DHCP.</p>';
   }
 }
 
@@ -1831,5 +2016,189 @@ async function renderHeatmap() {
     grid.innerHTML = html;
     document.getElementById('count-h-crit').textContent = critCount;
     document.getElementById('count-h-warn').textContent = warnCount;
+}
+
+/**
+ * GLOBAL DHCP SUMMARY LOGIC
+ */
+function updateGlobalDhcpTable(groups) {
+    const tableBody = document.getElementById('global-dhcp-table-body');
+    const container = document.getElementById('global-dhcp-summary');
+    if (!tableBody || !container) return;
+
+    let hasServers = false;
+    let tableHtml = '';
+
+    groups.forEach(group => {
+        (group.servers || []).forEach(s => {
+            hasServers = true;
+            const m = s.metrics || {};
+            
+            // Si el servidor está apagado o sin datos
+            if (m.status !== 'online') {
+                tableHtml += `
+                    <tr style="opacity:0.5;">
+                        <td style="font-weight:700; color:var(--muted);">${escapeHTML(s.alias)}</td>
+                        <td><span style="font-family:'JetBrains Mono', monospace; font-size:0.8rem;">-</span></td>
+                        <td style="text-align:center;">-</td>
+                        <td style="text-align:center;">-</td>
+                        <td style="text-align:center;">-</td>
+                        <td style="text-align:center; color:var(--muted); font-size:0.75rem;">Desconectado</td>
+                    </tr>
+                `;
+            } 
+            // Si no tiene DHCP o dio error
+            else if (!m.dhcp || m.dhcp === 'none' || m.dhcp === 'error') {
+                let label = 'SIN SERVICIO DHCP';
+                if (m.dhcp_error && m.dhcp_error !== 'none') {
+                    label = m.dhcp_error.replace('error:', '').toUpperCase();
+                    if (label.length > 20) label = label.substring(0, 20) + '...';
+                }
+                tableHtml += `
+                    <tr>
+                        <td style="font-weight:700; color:var(--cream);">${escapeHTML(s.alias)}</td>
+                        <td><span style="font-family:'JetBrains Mono', monospace; opacity:0.6; font-size:0.8rem;">N/A</span></td>
+                        <td style="text-align:center; color:var(--muted); opacity:0.5;">-</td>
+                        <td style="text-align:center; color:var(--muted); opacity:0.5;">-</td>
+                        <td style="text-align:center; color:var(--muted); opacity:0.5;">-</td>
+                        <td style="text-align:center; color:var(--muted); font-size:0.65rem; font-weight:700; padding:8px;">
+                            <span style="background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px; border:1px solid rgba(255,255,255,0.1);" title="${m.dhcp_error || ''}">${label}</span>
+                        </td>
+                    </tr>
+                `;
+            } 
+            // Si funciona correctamente
+            else {
+                const pct = m.dhcp.pct;
+                const free = m.dhcp.free || 0;
+                const used = m.dhcp.in_use || 0; 
+
+                const state = pct >= 90 ? 'critical' : (pct >= 75 ? 'warning' : 'normal');
+                const textColor = state === 'critical' ? 'var(--danger)' : (state === 'warning' ? 'var(--warn)' : 'var(--ok)');
+
+                const scopeId = m.dhcp.scope_id || "Global";
+                const scopeName = m.dhcp.scope_name || "Flota Global";
+                
+                tableHtml += `
+                    <tr>
+                        <td style="font-weight:700; color:var(--cream);">${escapeHTML(s.alias)}</td>
+                        <td><span style="font-family:'JetBrains Mono', monospace; color:var(--accent); font-size:0.8rem;">${escapeHTML(scopeName)}</span></td>
+                        <td style="color:${textColor}; font-weight:800; text-align:center;">${pct}%</td>
+                        <td style="text-align:center; color:var(--ok); font-family:'JetBrains Mono', monospace; font-weight:600;">${free}</td>
+                        <td style="text-align:center; color:var(--danger); font-family:'JetBrains Mono', monospace; font-weight:600;">${used}</td>
+                        <td style="text-align:center;">
+                            <button class="pill-btn mini" 
+                                onclick="openGlobalDhcpIps(${s.id}, '${escapeHTML(scopeId)}', '${escapeHTML(s.alias).replace(/'/g, "\\'")}')"
+                                style="font-size:0.65rem; padding:4px 12px; border:1px solid var(--blue); background:rgba(131,180,187,0.1);">
+                                🔍 VER IPs
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+    });
+
+    if (hasServers) {
+        tableBody.innerHTML = tableHtml;
+        // Make sure it is ALWAYS visible if there are servers in the fleet at all
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+/**
+ * ON-DEMAND DHCP IP DRILL-DOWN (NOC VIEW)
+ */
+async function openGlobalDhcpIps(serverId, scopeId, serverAlias) {
+    const modal = document.getElementById('dhcp-modal');
+    const title = document.getElementById('dhcp-modal-title');
+    const sub = document.getElementById('dhcp-modal-sub');
+    const container = document.getElementById('ip-list-container');
+    
+    if (!modal || !container) return;
+
+    title.textContent = `Pool DHCP: ${serverAlias}`;
+    sub.textContent = 'Conectando vía WinRM (On-Demand)...';
+    container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align:center; padding:40px;">
+            <div class="login-spinner" style="display:inline-block; width:30px; height:30px;"></div>
+            <p style="margin-top:15px; font-size:0.8rem; color:var(--muted);">Consultando listado de IPs remoto...</p>
+        </div>
+    `;
+    
+    modal.classList.add('active');
+
+    try {
+        const res = await fetch(`/api/fleet/dhcp/ips?server_id=${serverId}&scope=${encodeURIComponent(scopeId)}`);
+        const data = await res.json();
+
+        if (!data.ok) {
+            container.innerHTML = `<div style="grid-column: 1/-1; color:var(--danger); padding:20px; text-align:center;">
+                <strong>Error de conexión:</strong><br>${data.error}
+            </div>`;
+            sub.textContent = 'Error en la consulta remota';
+            return;
+        }
+
+        sub.textContent = `Rango detectado: ${data.total} IPs totales`;
+        
+        let ipHtml = '';
+        data.ips.forEach(ip => {
+            const color = ip.in_use ? 'var(--danger)' : 'var(--ok)';
+            const label = ip.in_use ? 'OCUPADA' : 'LIBRE';
+            ipHtml += `
+                <div style="background:rgba(0,0,0,0.2); padding:8px 12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(255,255,255,0.03)">
+                    <span style="font-family:'JetBrains Mono', monospace; font-size:0.85rem; color:var(--cream)">${ip.ip}</span>
+                    <span style="font-size:0.6rem; font-weight:800; color:${color}; opacity:0.8;">${label}</span>
+                </div>
+            `;
+        });
+
+        if (data.truncated) {
+            ipHtml += `<div style="grid-column: 1/-1; background:rgba(255,150,0,0.1); color:var(--warn); padding:10px; border-radius:6px; font-size:0.7rem; text-align:center;">
+                ⚠️ Listado truncado a 1000 IPs por rendimiento.
+            </div>`;
+        }
+
+        container.innerHTML = ipHtml;
+
+    } catch (e) {
+        container.innerHTML = `<div style="grid-column: 1/-1; color:var(--danger); padding:20px; text-align:center;">Error de red al intentar conectar con el servidor.</div>`;
+    }
+}
+
+/**
+ * FORZA EL REFRESCO DE DATOS DHCP EN LA FLOTA
+ */
+async function refreshGlobalDhcp() {
+    const btn = document.querySelector('button[onclick="refreshGlobalDhcp()"]');
+    if (btn) {
+        btn.innerHTML = '<span class="login-spinner" style="width:12px; height:12px; display:inline-block; border-width:2px;"></span> REFRESCANDO...';
+        btn.disabled = true;
+    }
+
+    try {
+        const res = await fetch('/api/fleet/dhcp/refresh', { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.ok) {
+            // Recargamos los datos del servidor (única fuente de verdad)
+            await loadServerCards();
+            if (btn) btn.innerHTML = '✅ REFRESCADO';
+        } else {
+            if (btn) btn.innerHTML = '❌ ERROR';
+        }
+    } catch (e) {
+        if (btn) btn.innerHTML = '❌ ERROR RED';
+    } finally {
+        setTimeout(() => {
+            if (btn) {
+                btn.innerHTML = '🔄 REFRESCAR DHCP';
+                btn.disabled = false;
+            }
+        }, 2000);
+    }
 }
 

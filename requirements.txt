@@ -1,4 +1,20 @@
+# ── Core Web Framework ──
 flask>=3.0.0
+
+# ── Remote Management (WinRM) ──
 pywinrm>=0.4.3
 requests-ntlm>=1.2.0
+
+# ── Security ──
 cryptography>=42.0.0
+
+# ── Database (PostgreSQL) ──
+psycopg2-binary>=2.9.9
+python-dotenv>=1.0.0
+
+# ── Agent Dependencies ──
+psutil>=5.9.0
+requests>=2.31.0
+
+# ── Build Tools (optional, for agent .exe) ──
+# pyinstaller>=6.0.0

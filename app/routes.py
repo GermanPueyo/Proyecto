@@ -6,7 +6,7 @@ import os, secrets, threading, traceback, socket, ipaddress, warnings, logging, 
 warnings.filterwarnings("ignore", category=UserWarning, module="winrm")
 logger = logging.getLogger(__name__)
 
-from .database import get_all_servers, get_server, add_server, update_server, delete_server, _conn, add_alert_log, get_alert_logs, resolve_alert_log
+from .database import get_all_servers, get_server, add_server, update_server, delete_server, _conn, add_alert_log, get_alert_logs, resolve_alert_log, save_dhcp_data, load_all_dhcp_from_db
 import datetime
 
 main_bp = Blueprint('main', __name__)
@@ -43,6 +43,16 @@ _net_history = {} # sid -> {'rx': val, 'tx': val, 'time': float}
 # NEW: Global Fleet Cache for NOC View
 _fleet_metrics_cache = {} # server_id -> {cpu, disk, status, last_update}
 _fleet_lock = threading.Lock()
+
+# Pre-fill DHCP cache from DB so data is available immediately on startup
+try:
+    _dhcp_from_db = load_all_dhcp_from_db()
+    for _sid, _dhcp in _dhcp_from_db.items():
+        _fleet_metrics_cache[_sid] = {"dhcp": _dhcp, "status": "offline", "source": "db_cache"}
+    if _dhcp_from_db:
+        logger.info(f"✅ DHCP cache pre-filled from DB for {len(_dhcp_from_db)} server(s)")
+except Exception as _e:
+    logger.warning(f"Could not pre-fill DHCP cache from DB: {_e}")
 
 def _get_ws(sid):
     with _sessions_lock:
@@ -125,12 +135,21 @@ def api_servers_list():
             # Case A: Live Streaming Session (User is currently in dashboard)
             if sid and sid in _metrics_cache:
                 m = _metrics_cache[sid]
+                
+                # El stream en vivo no trae DHCP, lo inyectamos de la caché de flota
+                dhcp_data = None
+                with _fleet_lock:
+                    fm = _fleet_metrics_cache.get(str(s["id"]))
+                    if fm:
+                        dhcp_data = fm.get("dhcp")
+                        
                 s_data["metrics"] = {
                     "cpu": m.get("cpu", 0),
                     "ram": m.get("ram", 0),
                     "disk": m.get("disk", 0),
                     "status": "online",
-                    "source": "streaming"
+                    "source": "streaming",
+                    "dhcp": dhcp_data
                 }
             else:
                 # Case B: Fleet Background Worker cache
@@ -151,7 +170,8 @@ def api_servers_list():
                             "status": s_status,
                             "source": fm.get("source", "fleet_worker"),
                             "used_gb": fm.get("used_gb"),
-                            "total_gb": fm.get("total_gb")
+                            "total_gb": fm.get("total_gb"),
+                            "dhcp": fm.get("dhcp") # <--- AÑADIDO: Enviar soporte DHCP a la UI
                         }
                     else:
                         s_data["metrics"] = {"status": "offline", "source": "none"}
@@ -458,20 +478,40 @@ def agent_report():
         logger.warning(f"SECURITY ALERT: Identity mismatch for agent {srv_id}. Expected {srv.get('ip')}, got {client_ip}")
         return jsonify({"ok": False, "error": "Identity mismatch"}), 403
 
-    status = data.get("status", "online")
-    metrics = {
-        "cpu": data.get("cpu", 0),
-        "ram": data.get("ram", 0),
-        "disk": data.get("disk", 0),
-        "status": status,
-        "source": "agent",
-        "last_sync": time.time()
-    }
-
-    # Update Global Cache
+    # Update Global Cache (With Persistence)
     srv_id_str = str(srv_id)
     with _fleet_lock:
-        _fleet_metrics_cache[srv_id_str] = metrics
+        old_metrics = _fleet_metrics_cache.get(srv_id_str, {})
+        
+        # Positive Retention: Only update if we have meaningful data, otherwise keep last known
+        status = data.get("status", "online")
+        new_metrics = {
+            "cpu": data.get("cpu") if data.get("cpu") is not None else old_metrics.get("cpu", 0),
+            "ram": data.get("ram") if data.get("ram") is not None else old_metrics.get("ram", 0),
+            "disk": data.get("disk") if data.get("disk") is not None else old_metrics.get("disk", 0),
+            "status": status,
+            "source": "agent",
+            "last_sync": time.time()
+        }
+        
+        # Prevent 0.0 drop if it looks like a glitch (keeps historical value for 5s)
+        if new_metrics["cpu"] == 0 and old_metrics.get("cpu", 0) > 0:
+             # Just a safety check to avoid flickering
+             new_metrics["cpu"] = old_metrics["cpu"]
+
+        # AGENT DHCP SUPPORT
+        if "dhcp" in data:
+            new_metrics["dhcp"] = data["dhcp"]
+            # Persist to DB so it survives Flask restarts
+            try:
+                save_dhcp_data(int(srv_id), data["dhcp"])
+            except Exception:
+                pass
+        elif "dhcp" in old_metrics:
+            new_metrics["dhcp"] = old_metrics["dhcp"]
+
+        _fleet_metrics_cache[srv_id_str] = new_metrics
+        metrics = new_metrics
 
     # --- SSE REAL-TIME TRIGGER & PERSISTENT LOGGING ---
     # Smart Logging: Identify when a crisis starts and ends
@@ -589,40 +629,88 @@ def alerts_stream():
 
 @main_bp.route("/api/metrics")
 def api_metrics():
-    """
-    ULTRA-FAST CACHE-FIRST API: Multi-Server Isolated.
-    """
+    """Ultra-fast cache-first API for server status."""
+    srv_id = request.args.get("server_id")
     sid = request.args.get("sid") or session.get("sid")
-    client_srv_id = request.args.get("server_id") # Explicitly passed by frontend
     
-    # Priority 1: High-Speed Detail Streaming Cache (Matched by SID)
+    # Priority 1: Streaming Detail Cache (WinRM session active)
     data = _metrics_cache.get(sid)
     if data:
         entry = _get_ws(sid)
         return jsonify({"ok": True, "source": "streaming", "specs": entry.get("specs") if entry else None, **data})
 
-    # Priority 2: Fleet Worker Cache Fallback (Using explicit server_id for reliability)
-    target_id = None
-    if client_srv_id:
-        try: target_id = int(client_srv_id)
-        except: pass
-    else:
-        entry = _get_ws(sid)
-        if entry: target_id = entry.get("server_id")
-
-    if target_id:
+    # Priority 2: Fleet Cache (Agent-reported data)
+    if srv_id:
+        srv_id_str = str(srv_id)
         with _fleet_lock:
-            fm = _fleet_metrics_cache.get(target_id)
-            if fm and fm.get("status") == "online":
+            fm = _fleet_metrics_cache.get(srv_id_str)
+            if fm:
                 return jsonify({
                     "ok": True,
-                    "source": "fleet",
-                    "specs": None,
+                    "source": "agent",
                     "cpu": fm.get("cpu", 0),
                     "ram": fm.get("ram", 0),
                     "disk": fm.get("disk", 0),
-                    "status": "online"
+                    "status": fm.get("status", "online")
                 })
+
+    return jsonify({"ok": False, "error": "No data available"}), 404
+
+@main_bp.route("/api/fleet/dhcp/refresh", methods=["POST"])
+def api_fleet_dhcp_refresh():
+    """Force an immediate full poll (including DHCP) in the fleet worker."""
+    _fleet_worker_loop.poll_count = 0 
+    return jsonify({"ok": True, "message": "Refresco de flota programado"})
+
+@main_bp.route("/api/dhcp")
+def api_dhcp():
+    sid = request.args.get("sid") or session.get("sid")
+    entry = _get_ws(sid)
+    if not entry or not entry.get("session"): 
+        return jsonify({"ok": False, "error": "No conectado"}), 401
+    
+    script = r'''
+    $ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
+    try {
+        $svc = try { Get-Service dhcpserver -EA Stop } catch { $null }
+        if (-not $svc) {
+            Write-Output '{"ok":true, "dhcp_installed":false}'
+        } else {
+            $scopes = try { Get-DhcpServerv4Scope -EA Stop } catch { $null }
+            if (-not $scopes) {
+                Write-Output '{"ok":true, "dhcp_installed":true, "scopes":[]}'
+            } else {
+                $statsAll = Get-DhcpServerv4ScopeStatistics
+                $outScopes = @()
+                foreach ($s in $scopes) {
+                    $stats = $statsAll | Where-Object ScopeId -eq $s.ScopeId
+                    $pct = if ($stats.PercentageInUse) { [math]::Round($stats.PercentageInUse, 1) } else { 0 }
+                    $outScopes += @{
+                        ScopeId = "$($s.ScopeId)"
+                        Name = "$($s.Name)"
+                        InUse = $stats.InUse
+                        Free = $stats.Free
+                        Reserved = $stats.ReservedAddress
+                        Pending = $stats.PendingOffers
+                        Percentage = $pct
+                    }
+                }
+                $res = @{ ok=$true; dhcp_installed=$true; scopes=$outScopes }
+                Write-Output ($res | ConvertTo-Json -Depth 5 -Compress)
+            }
+        }
+    } catch {
+        $err = $_.Exception.Message.Replace('"', '\"').Replace("`n", " ")
+        Write-Output "{\`"ok\`":false,\`"error\`":\`"Excepcion de PS: $err\`"}"
+    }
+    '''
+    try:
+        out = _run_ps(entry["session"], script)
+        if not out: return jsonify({"ok": True, "scopes": []})
+        data = json.loads(out)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
     # Priority 3: Loading / No Context
     return jsonify({
@@ -690,61 +778,6 @@ try {
         data = json.loads(raw)
         if not data.get("ok"): return jsonify(data), 500
         return jsonify({"ok": True, "disks": data.get("disks", [])})
-    except Exception as e: 
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-@main_bp.route("/api/dhcp")
-def api_dhcp():
-    sid = request.args.get("sid") or session.get("sid")
-    entry = _get_ws(sid)
-    if not entry or not entry.get("session"): return jsonify({"ok": False, "error": "No conectado"}), 401
-    script = r'''
-$ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
-try {
-    $svc = try { Get-Service dhcpserver -EA Stop } catch { $null }
-    if (-not $svc) {
-        Write-Output '{"ok":true, "dhcp_installed":false}'
-    } else {
-        $scopes = try { Get-DhcpServerv4Scope -EA Stop } catch { $null }
-        if (-not $scopes) {
-            Write-Output '{"ok":true, "dhcp_installed":true, "scopes":[]}'
-        } else {
-            $statsAll = Get-DhcpServerv4ScopeStatistics
-            $outScopes = @()
-            foreach ($s in $scopes) {
-                $stats = $statsAll | Where-Object ScopeId -eq $s.ScopeId
-                $pct = if ($stats.PercentageInUse) { $stats.PercentageInUse } else { 0 }
-                $outScopes += @{
-                    scope_id = "$($s.ScopeId)"
-                    name = "$($s.Name)"
-                    start_range = "$($s.StartRange)"
-                    end_range = "$($s.EndRange)"
-                    subnet_mask = "$($s.SubnetMask)"
-                    free = $stats.Free
-                    in_use = $stats.InUse
-                    pct_in_use = $pct
-                }
-            }
-            $res = @{ ok=$true; dhcp_installed=$true; scopes=$outScopes }
-            Write-Output ($res | ConvertTo-Json -Depth 5 -Compress)
-        }
-    }
-} catch {
-    $err = $_.Exception.Message.Replace('"', '\"').Replace("`n", " ")
-    Write-Output "{\`"ok\`":false,\`"error\`":\`"Excepcion de PS: $err\`"}"
-}
-'''
-    try:
-        import json
-        ws_temp = winrm.Session(
-            entry["ip"], auth=(entry["user"], entry["pwd"]),
-            transport="ntlm", server_cert_validation="ignore",
-            read_timeout_sec=30, operation_timeout_sec=25
-        )
-        raw = _run_ps(ws_temp, script)
-        data = json.loads(raw)
-        if not data.get("ok"): return jsonify(data), 500
-        return jsonify(data)
     except Exception as e: 
         return jsonify({"ok": False, "error": str(e)}), 500
 
@@ -823,6 +856,105 @@ try {{
             "truncated": is_truncated
         })
     except Exception as e: 
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@main_bp.route("/api/fleet/dhcp/ips")
+def api_fleet_dhcp_ips():
+    """On-demand DHCP IP query from the global fleet view (uses DB credentials)."""
+    import ipaddress, json
+    from .database import get_server
+
+    server_id = request.args.get("server_id")
+    scope_id = request.args.get("scope")
+
+    if not server_id or not scope_id:
+        return jsonify({"ok": False, "error": "Faltan parámetros (server_id, scope)"}), 400
+
+    # 1. Fetch server from DB
+    s = get_server(server_id)
+    if not s:
+        return jsonify({"ok": False, "error": "Servidor no encontrado"}), 404
+
+    # 2. Extract credentials
+    ip = s["ip"]
+    user = s["username"]
+    pwd = s["password"]
+
+    # 3. Connect and Query
+    script = f'''
+    $ErrorActionPreference = 'Stop'; $WarningPreference = 'SilentlyContinue'; $ProgressPreference = 'SilentlyContinue';
+    try {{
+        $scope = Get-DhcpServerv4Scope -ScopeId "{scope_id}" -EA Stop
+        $leases = @()
+        try {{
+            $leasesData = Get-DhcpServerv4Lease -ScopeId "{scope_id}" -EA Stop
+            foreach ($l in $leasesData) {{ $leases += "$($l.IPAddress)" }}
+        }} catch {{}}
+        
+        $res = @{{
+            ok = $true
+            start = "$($scope.StartRange)"
+            end = "$($scope.EndRange)"
+            leases = $leases
+        }}
+        Write-Output ($res | ConvertTo-Json -Depth 4 -Compress)
+    }} catch {{
+        $res = @{{ ok = $false; error = "Excepcion de PS: $($_.Exception.Message)" }}
+        Write-Output ($res | ConvertTo-Json -Compress)
+    }}
+    '''
+
+    try:
+        # We use a short-lived session here
+        ws = winrm.Session(
+            ip, auth=(user, pwd), 
+            transport="ntlm", server_cert_validation="ignore",
+            read_timeout_sec=35, operation_timeout_sec=30
+        )
+        
+        # Generic runner function used in the app
+        def _run_internal(session, script):
+            r = session.run_ps(script)
+            if r.status_code != 0:
+                raise Exception(r.std_err.decode('utf-8', errors='ignore'))
+            return r.std_out.decode('utf-8', errors='ignore')
+
+        raw = _run_internal(ws, script)
+        data = json.loads(raw)
+        if not data.get("ok"): return jsonify(data), 500
+        
+        start_ip = data.get("start")
+        end_ip = data.get("end")
+        raw_leases = data.get("leases")
+        if isinstance(raw_leases, str): raw_leases = [raw_leases]
+        if not raw_leases: raw_leases = []
+        leases = set(raw_leases)
+        
+        start_val = int(ipaddress.IPv4Address(start_ip))
+        end_val = int(ipaddress.IPv4Address(end_ip))
+        total_ips = end_val - start_val + 1
+        
+        limit = 1000
+        is_truncated = False
+        if total_ips > limit:
+            end_val = start_val + limit - 1
+            is_truncated = True
+            
+        ips = []
+        for ip_int in range(start_val, end_val + 1):
+            ip_str = str(ipaddress.IPv4Address(ip_int))
+            ips.append({
+                "ip": ip_str,
+                "in_use": ip_str in leases
+            })
+            
+        return jsonify({
+            "ok": True, 
+            "ips": ips, 
+            "total": total_ips, 
+            "truncated": is_truncated
+        })
+    except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
 # ------------------------------------------------------------------
@@ -1010,8 +1142,11 @@ def _fleet_worker_loop():
                 time.sleep(10); continue
 
             now_float = time.time()
-            # Decide if we do a full WinRM poll this cycle (every 600s)
-            do_full_poll = (now_float - last_full_metrics_poll >= 600)
+            # NEW: Force full poll on first 3 cycles OR every 60s
+            # This ensures we get DHCP data immediately after a restart/edit
+            if not hasattr(_fleet_worker_loop, 'poll_count'): _fleet_worker_loop.poll_count = 0
+            do_full_poll = (now_float - last_full_metrics_poll >= 60) or (_fleet_worker_loop.poll_count < 3)
+            _fleet_worker_loop.poll_count += 1
 
             # 2. Define the individual worker task
             def poll_one(s):
@@ -1047,7 +1182,7 @@ def _fleet_worker_loop():
                             _fleet_sessions[srv_id] = winrm.Session(
                                 ip, auth=(s["username"], pwd), 
                                 transport="ntlm", server_cert_validation="ignore",
-                                read_timeout_sec=10, operation_timeout_sec=8
+                                read_timeout_sec=65, operation_timeout_sec=60 
                             )
                         
                         ws = _fleet_sessions[srv_id]
@@ -1057,27 +1192,80 @@ def _fleet_worker_loop():
                         $os = Get-CimInstance Win32_OperatingSystem;
                         $ramPct = [math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100, 0);
                         $d = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'";
-                        $total = [math]::Round($d.Size / 1GB, 0);
-                        $free = [math]::Round($d.FreeSpace / 1GB, 0);
-                        $used = $total - $free;
-                        $diskPct = if($total -gt 0){ [math]::Round(($used/$total)*100,0) }else{0};
-                        "$c;$ramPct;$diskPct;$used;$total"
+                        $totalMax = [math]::Round($d.Size / 1GB, 0);
+                        $freeMax = [math]::Round($d.FreeSpace / 1GB, 0);
+                        $usedMax = $totalMax - $freeMax;
+                        $diskPct = if($totalMax -gt 0){ [math]::Round(($usedMax/$totalMax)*100,0) }else{0};
+                        
+                        # DHCP Integration (Fleet View)
+                        $dhcpData = "none";
+                        $svc = Get-Service dhcpserver -ErrorAction SilentlyContinue;
+                        if ($null -ne $svc -and $svc.Status -eq 'Running') {
+                            try {
+                                $stats = Get-DhcpServerv4ScopeStatistics -ErrorAction Stop;
+                                if ($stats) {
+                                    [int]$inUse = 0;
+                                    [int]$free = 0;
+                                    foreach ($s in @($stats)) {
+                                        if ($null -ne $s.AddressesInUse) { $inUse += $s.AddressesInUse }
+                                        if ($null -ne $s.AddressesFree) { $free += $s.AddressesFree }
+                                    }
+                                    $totalIps = $inUse + $free;
+                                    $avgPct = 0;
+                                    if ($totalIps -gt 0) { $avgPct = [math]::Round(($inUse / $totalIps) * 100, 0) }
+                                    $dhcpData = "$avgPct;$inUse;$free;$totalIps";
+                                } else {
+                                    $dhcpData = "error:nostats";
+                                }
+                            } catch { 
+                                $dhcpData = "error:exception" 
+                            }
+                        } else {
+                            if ($null -ne $svc) {
+                                $dhcpData = "error:notrunning"
+                            }
+                        }
+                        
+                        "$c;$ramPct;$diskPct;$usedMax;$totalMax|$dhcpData"
                         '''
                         res = ws.run_ps(ps)
+                                
                         if res.status_code == 0:
                             raw = res.std_out.decode('utf-8', errors='ignore').strip()
-                            parts = raw.split(';')
-                            if len(parts) >= 4:
-                                return srv_id, {
-                                    "status": "online",
-                                    "cpu": int(parts[0]),
-                                    "ram": int(parts[1]),
-                                    "disk": int(parts[2]),
-                                    "used_gb": int(parts[3]),
-                                    "total_gb": int(parts[4]),
-                                    "last_sync": time.time(),
-                                    "source": "fleet_worker"
-                                }
+                            # Split metrics and DHCP data
+                            main_parts = raw.split('|')
+                            parts = main_parts[0].split(';')
+                            dhcp_raw = main_parts[1] if len(main_parts) > 1 else "none"
+                            
+                            m_data = {
+                                "status": "online",
+                                "cpu": int(parts[0]),
+                                "ram": int(parts[1]),
+                                "disk": int(parts[2]),
+                                "used_gb": int(parts[3]),
+                                "total_gb": int(parts[4]),
+                                "last_sync": time.time(),
+                                "source": "fleet_worker"
+                            }
+                            
+                            # Parse DHCP if available
+                                
+                            if dhcp_raw.startswith("error"):
+                                m_data["dhcp"] = "error"
+                                m_data["dhcp_error"] = dhcp_raw
+                            elif dhcp_raw != "none":
+                                dp = dhcp_raw.split(';')
+                                if len(dp) >= 4:
+                                    try:
+                                        m_data["dhcp"] = {
+                                            "pct": int(float(dp[0])),
+                                            "in_use": int(float(dp[1])),
+                                            "free": int(float(dp[2])),
+                                            "total": int(float(dp[3]))
+                                        }
+                                    except Exception:
+                                        m_data["dhcp"] = "error"
+                            return srv_id, m_data
                     except Exception:
                         _fleet_sessions.pop(srv_id, None)
 

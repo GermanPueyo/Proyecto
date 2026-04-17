@@ -5,6 +5,9 @@ import socket
 import signal
 import sys
 import logging
+import subprocess
+import json
+import re
 
 # --- CONFIGURACIÓN DEL AGENTE (CAMBIAR SEGÚN NECESIDAD) ---
 SERVER_URL = "http://192.168.56.1:5000" 
@@ -32,6 +35,32 @@ class FlowerNodeAgent:
         self.running = False
         sys.exit(0)
 
+    def get_dhcp_stats(self):
+        """Detecta si el rol DHCP está instalado y obtiene estadísticas de ámbitos."""
+        script = "Get-DhcpServerv4ScopeStatistics | Select-Object -First 1 | ConvertTo-Json"
+        try:
+            # Ejecutamos PowerShell para obtener el ámbito con más uso (o el primero)
+            proc = subprocess.run(
+                ["powershell", "-Command", script],
+                capture_output=True, text=True, timeout=10
+            )
+            logger.debug(f"DHCP query: rc={proc.returncode}")
+            if proc.returncode == 0 and proc.stdout.strip():
+                data = json.loads(proc.stdout)
+                # Mapeamos los campos de PowerShell a nuestro formato estándar
+                scope_str = data.get("ScopeId", {}).get("IPAddressToString", "Global")
+                return {
+                    "pct": int(float(data.get("PercentageInUse", 0))),
+                    "in_use": int(data.get("InUse", 0)),
+                    "free": int(data.get("Free", 0)),
+                    "total": int(data.get("InUse", 0) + data.get("Free", 0)),
+                    "scope_id": scope_str,
+                    "scope_name": scope_str
+                }
+        except Exception:
+            pass # Si falla o no está instalado, simplemente no devolvemos nada
+        return None
+
     def send_report(self, status="online", metrics=None):
         url = f"{SERVER_URL}/api/agent/report"
         headers = {"X-API-KEY": API_KEY, "Content-Type": "application/json"}
@@ -56,9 +85,16 @@ class FlowerNodeAgent:
                     "ram": psutil.virtual_memory().percent,
                     "disk": psutil.disk_usage('C:').percent
                 }
+
+                # Auto-detección de DHCP (Dinámico)
+                dhcp_data = self.get_dhcp_stats()
+                if dhcp_data:
+                    metrics["dhcp"] = dhcp_data
                 
                 now = time.time()
-                is_critical = any(v >= 80 for v in metrics.values())
+                is_critical = any(v >= 80 for k, v in metrics.items() if isinstance(v, (int, float)))
+                if dhcp_data and dhcp_data.get("pct", 0) >= 80:
+                    is_critical = True
                 
                 # Determinamos el intervalo actual
                 current_interval = REPORT_INTERVAL_CRITICAL if is_critical else REPORT_INTERVAL_NORMAL

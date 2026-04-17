@@ -1,6 +1,5 @@
 # Script de Compilacion del Agente FlowerNode (V4 - Modo Task)
 
-$PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $AgentPath = Join-Path $PSScriptRoot "..\agente\node_agent.py"
 $OutputPrefix = "FlowerNodeAgent"
 
@@ -10,8 +9,7 @@ Set-Location $PSScriptRoot
 
 # Compilacion limpia: Sin ventana, un solo archivo
 Write-Host "Compilando ejecutable independiente..." -ForegroundColor Yellow
-& py -m PyInstaller --noconsole `
-                    --onefile `
+& py -m PyInstaller --onefile `
                     --clean `
                     --name $OutputPrefix `
                     --distpath . `
